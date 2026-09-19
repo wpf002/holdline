@@ -75,7 +75,9 @@ AWARD Work 01 Apr 0001 -- 30 Apr 2359 (L-)
 
 ## IBS / AD OPT
 
-Desire/Avoid preferences scored by a Pairing Analyzer (Endeavor AFA). Exact syntax needs a member-only handbook (ACPA, FedEx ALPA, PSA ALPA).
+Desire/Avoid preferences scored by a Pairing Analyzer (Endeavor AFA). Full syntax needs a member-only handbook (ACPA, FedEx ALPA, PSA ALPA).
+
+Endeavor AFA's public help page (https://edvafa.org/pbs-bidding-help, Sept 2026) names these options: `Desire Specific Date Off`, `Desire Days Off`, `Desire Weekends Off`, `Desire Pairing Length In Days equal to`, `Avoid Pairing Length In Days greater than`, `Avoid Consecutive Working Days Greater Than`. Desire scores positively when granted, Avoid negatively when assigned; the solver maximizes the total. Points are per granted item, so four Wednesdays at 300 outweigh one date at 800; "Don't put everything at 1000 points". Reserve choices (Ready Reserve, P1 0400-1800 / P2 1000-2359) sit on an Other Options tab. Holdline's weighted compiler emits only these options.
 
 ## Existing tools
 

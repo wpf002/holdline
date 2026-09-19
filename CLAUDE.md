@@ -22,7 +22,7 @@ First user: a regional pilot (likely Envoy or Piedmont, both NAVBLUE, PBS new in
 |---|---|---|
 | `ORDERED_GROUPS` | NAVBLUE (Delta, JetBlue, Alaska, Frontier, Spirit, Hawaiian, Envoy, Piedmont, GoJet…), Jeppesen (United pilots) | Bid groups of ordered lines. Order = priority. Negative lines remove pairings from the pool for lines below |
 | `LAYERED` | American (pilots + APFA), AOS (SkyWest) | 7 cumulative layers. Days-off / pairing / line properties. OR within a property, AND across |
-| `WEIGHTED` | IBS/AD OPT (Air Canada, FedEx, PSA, Endeavor, WestJet, Republic) | Desire/avoid with scoring. Syntax unconfirmed. Build last |
+| `WEIGHTED` | IBS/AD OPT (Air Canada, FedEx, PSA, Endeavor, WestJet, Republic) | Desire/avoid with points. Six options sourced from Endeavor AFA's help page; the rest warn |
 
 NAVBLUE line types (colour in their UI): `Prefer Off` (yellow), `Avoid Pairings If…` (orange), `Award Pairings If…` (green), `Set Condition` (purple, must be above Award lines), `Waive` (light blue), instructions (blue: `Clear Schedule and Start Next Bid Group`, `Forget Line`, `Redo from Line`). Each pairing group starts with a system `Start Pairings` line and ends with a system `Award Pairings` line. Reserve groups (`Start Reserve`) go below all pairing groups. Full property list in `docs/pbs-research.md`.
 

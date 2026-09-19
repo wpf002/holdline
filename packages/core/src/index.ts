@@ -8,6 +8,7 @@ import type {
 import { compileJeppesen } from "./compilers/jeppesen/compile.js";
 import { compileLayered } from "./compilers/layered/compile.js";
 import { compileNavblue } from "./compilers/navblue/compile.js";
+import { compileWeighted } from "./compilers/weighted/compile.js";
 
 export { relaxationSteps, resolvePriorities, type Priorities, type RelaxStep } from "./relax.js";
 export * from "./awards/index.js";
@@ -25,6 +26,7 @@ export function canCompile(vendor: PbsVendor, dialect?: BidDialect): boolean {
     vendor === "NAVBLUE" ||
     vendor === "JEPPESEN" ||
     vendor === "AOS" ||
+    vendor === "IBS_ADOPT" ||
     (vendor === "UNKNOWN" && dialect === "LAYERED")
   );
 }
@@ -46,6 +48,8 @@ export function compile(
       return compileJeppesen(intent, config);
     case "AOS":
       return compileLayered(intent, vendor, config);
+    case "IBS_ADOPT":
+      return compileWeighted(intent, config);
     case "UNKNOWN":
       if (dialect === "LAYERED") return compileLayered(intent, vendor, config);
       throw new UnsupportedVendorError(vendor);

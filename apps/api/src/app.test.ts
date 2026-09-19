@@ -62,6 +62,20 @@ const airlines: AirlineRecord[] = [
     ],
   },
   {
+    code: "XXX",
+    name: "Unmapped Air",
+    deployments: [
+      {
+        id: "xxx-pilot",
+        crewGroup: "PILOT",
+        vendor: "UNKNOWN",
+        dialect: "ORDERED_GROUPS",
+        confidence: "INFERRED",
+        config: {},
+      },
+    ],
+  },
+  {
     code: "BAD",
     name: "Bad Config Air",
     deployments: [
@@ -181,10 +195,15 @@ describe("POST /bids/compile", () => {
     });
   });
 
-  it("501 when the vendor has no compiler yet", async () => {
+  it("compiles IBS / AD OPT as weighted points", async () => {
     const res = await post({ ...intent, airline: "RPA" });
+    expect(res.json<CompileResponse>()).toMatchObject({ vendor: "IBS_ADOPT", dialect: "WEIGHTED" });
+  });
+
+  it("501 when the vendor has no compiler yet", async () => {
+    const res = await post({ ...intent, airline: "XXX" });
     expect(res.statusCode).toBe(501);
-    expect(res.json()).toMatchObject({ error: "not_implemented", vendor: "IBS_ADOPT" });
+    expect(res.json()).toMatchObject({ error: "not_implemented", vendor: "UNKNOWN" });
   });
 
   it("500 when the stored deployment config is malformed", async () => {
@@ -284,7 +303,8 @@ describe("GET /airlines", () => {
     const rows =
       res.json<{ code: string; deployments: { vendor: string; compilable: boolean }[] }[]>();
     expect(rows.find((a) => a.code === "UAL")!.deployments[0]).toMatchObject({ compilable: true });
-    expect(rows.find((a) => a.code === "RPA")!.deployments[0]).toMatchObject({ compilable: false });
+    expect(rows.find((a) => a.code === "RPA")!.deployments[0]).toMatchObject({ compilable: true });
+    expect(rows.find((a) => a.code === "XXX")!.deployments[0]).toMatchObject({ compilable: false });
   });
 });
 
