@@ -1,3 +1,4 @@
+import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import {
   UnsupportedVendorError,
@@ -26,7 +27,12 @@ import {
   type PbsVendor,
 } from "@holdline/types";
 import Fastify, { type FastifyReply } from "fastify";
+import type { Accounts } from "./accounts.js";
+import { registerAuth, type AuthOptions } from "./auth.js";
+import { registerBilling, type Billing } from "./billing.js";
+import type { Mailer } from "./mailer.js";
 import { ParserError, type Parser } from "./parse.js";
+import { registerSavedBids } from "./saved-bids.js";
 
 type CrewGroup = BidIntent["crewGroup"];
 
@@ -78,6 +84,15 @@ export interface Deps {
   store: Store;
   /** Absent when ANTHROPIC_API_KEY isn't set; /bids/parse then answers 503. */
   parser?: Parser;
+  /** Sign-in, saved bids and billing. Absent in tests that only exercise the anonymous routes. */
+  accounts?: {
+    accounts: Accounts;
+    mailer?: Mailer;
+    billing?: Billing;
+    webUrl: string;
+    cookie: AuthOptions["cookie"];
+    now?: () => Date;
+  };
 }
 
 const CREW_NAMES: Record<CrewGroup, string> = {
@@ -91,11 +106,18 @@ const IMPORT_BODY_LIMIT = 10 * 1024 * 1024;
 const HISTORY_MONTHS = 3;
 
 export async function buildApp(
-  { store, parser }: Deps,
+  { store, parser, accounts: auth }: Deps,
   opts: { corsOrigins?: string[]; logger?: boolean } = {},
 ) {
   const app = Fastify({ logger: opts.logger ?? false });
-  await app.register(cors, { origin: opts.corsOrigins ?? false });
+  await app.register(cors, {
+    origin: opts.corsOrigins ?? false,
+    credentials: true,
+    methods: ["GET", "POST", "PATCH", "DELETE"],
+  });
+  await app.register(cookie);
+  // Before any route, so every handler sees req.account.
+  if (auth) await registerAuth(app, { ...auth, accounts: auth.accounts });
 
   /** The PBS deployment for an airline and crew group; answers 404 and returns null when missing. */
   async function findDeployment(code: string, crewGroup: CrewGroup, reply: FastifyReply) {
@@ -258,6 +280,11 @@ export async function buildApp(
     await store.saveAwards(found.deployment.id, request.base, request.month, awards);
     return { imported: awards.length, errors } satisfies ImportResponse;
   });
+
+  if (auth) {
+    await registerSavedBids(app, { accounts: auth.accounts, store });
+    await registerBilling(app, auth);
+  }
 
   return app;
 }

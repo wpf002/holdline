@@ -44,7 +44,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <HoldlineMark />
               Holdline
             </Link>
-            <SiteNav />
+            <SiteNav apiUrl={process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"} />
           </div>
         </header>
         {children}

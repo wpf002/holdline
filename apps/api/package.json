@@ -13,12 +13,14 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.127.0",
+    "@fastify/cookie": "11.1.2",
     "@fastify/cors": "11.3.0",
     "@holdline/core": "workspace:*",
     "@holdline/db": "workspace:*",
     "@holdline/types": "workspace:*",
     "dotenv": "18.0.1",
     "fastify": "5.12.5",
+    "stripe": "22.6.2",
     "zod": "4.6.5"
   },
   "devDependencies": {

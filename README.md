@@ -2,7 +2,7 @@
 
 Holdline turns a crew member's plain-English schedule wishes into a correct, ordered PBS bid for their airline's bidding system. It's the QuickBid experience (say what you want, get it sorted) rebuilt for Preferential Bidding Systems, where there are no lines to rank and the bid has to be written in the vendor's rule language.
 
-**Status:** build steps 1–6. The web form builds a `BidIntent`; `POST /bids/compile` writes it for NAVBLUE (one group, relaxed by Denial Mode), Jeppesen (one bid group per relaxation step) or layered PBS (American and SkyWest AOS, one layer per step). Every compiler reports `syntaxVerified: false` until its wording is checked against a real bid screen; Jeppesen only emits statements with a documented example and warns on the rest. `POST /bids/parse` pre-fills the form from plain English once `ANTHROPIC_API_KEY` is set (503 without it). `POST /bid-periods/import` loads a month of pairings in Holdline's CSV or JSON format ([docs/pairing-import.md](docs/pairing-import.md)) so each line shows how many pairings it removes. `POST /awards/import` loads past award results ([docs/award-import.md](docs/award-import.md)); with your seniority, the bid shows how far down lines and matching pairings went. IBS / AD OPT returns 501.
+**Status:** build steps 1–7. The web form builds a `BidIntent`; `POST /bids/compile` writes it for NAVBLUE (one group, relaxed by Denial Mode), Jeppesen (one bid group per relaxation step) or layered PBS (American and SkyWest AOS, one layer per step). Every compiler reports `syntaxVerified: false` until its wording is checked against a real bid screen; Jeppesen only emits statements with a documented example and warns on the rest. `POST /bids/parse` pre-fills the form from plain English once `ANTHROPIC_API_KEY` is set (503 without it). `POST /bid-periods/import` loads a month of pairings in Holdline's CSV or JSON format ([docs/pairing-import.md](docs/pairing-import.md)) so each line shows how many pairings it removes. `POST /awards/import` loads past award results ([docs/award-import.md](docs/award-import.md)); with your seniority, the bid shows how far down lines and matching pairings went. Signing in (magic link) lets crew save bids and keep a default bid; a Stripe subscription is wired up but no feature is behind it yet. IBS / AD OPT returns 501.
 
 ## Stack
 
@@ -40,6 +40,10 @@ curl localhost:4000/airlines    # real rows from Postgres
 | `NEXT_PUBLIC_API_URL` | yes for web | API public URL |
 | `ANTHROPIC_API_KEY` | for `/bids/parse` | console.anthropic.com -> API Keys. Without it the parser returns 503 and the form still works |
 | `ANTHROPIC_MODEL` | no | Model ID used for parsing |
+| `WEB_URL` | yes for sign-in | Web app base URL for sign-in links and Stripe redirects |
+| `RESEND_API_KEY`, `MAIL_FROM` | for sign-in emails | resend.com. Without a key, development prints sign-in links to the API console; production answers 503 |
+| `COOKIE_SAMESITE`, `COOKIE_SECURE` | no | Session cookie. Web and API on different sites need `none` and `true` |
+| `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, `STRIPE_WEBHOOK_SECRET` | for billing | Stripe dashboard. Without all three, billing answers 503. Webhook endpoint: `POST /billing/webhook` |
 
 ## Project structure
 

@@ -63,15 +63,44 @@ model PbsDeployment {
 }
 
 model User {
-  id         String     @id @default(cuid())
-  email      String     @unique
-  airline    Airline?   @relation(fields: [airlineId], references: [id])
-  airlineId  String?
-  crewGroup  CrewGroup?
-  base       String?
-  seniority  Int?
-  createdAt  DateTime   @default(now())
-  bids       Bid[]
+  id                 String         @id @default(cuid())
+  email              String         @unique
+  airline            Airline?       @relation(fields: [airlineId], references: [id])
+  airlineId          String?
+  crewGroup          CrewGroup?
+  base               String?
+  seniority          Int?
+  createdAt          DateTime       @default(now())
+  /// Stripe customer and subscription state, mirrored from webhooks.
+  stripeCustomerId   String?        @unique
+  subscriptionStatus String?
+  currentPeriodEnd   DateTime?
+  bids               Bid[]
+  sessions           Session[]
+}
+
+/// A signed-in browser. Only a SHA-256 hash of the cookie token is stored.
+model Session {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+/// A magic sign-in link. Only a SHA-256 hash of the emailed token is stored; usable once.
+model LoginToken {
+  id        String    @id @default(cuid())
+  email     String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([email, createdAt])
 }
 
 /// One month's bid package for one base.
@@ -108,15 +137,20 @@ model Pairing {
 
 model Bid {
   id           String        @id @default(cuid())
-  user         User          @relation(fields: [userId], references: [id])
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId       String
   deployment   PbsDeployment @relation(fields: [deploymentId], references: [id])
   deploymentId String
   month        String
+  name         String?
+  /// The bid to start from each month, like PBS's Default Bid. At most one per user.
+  isDefault    Boolean       @default(false)
   intent       Json // BidIntent
   compiled     Json? // CompiledBid
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+
+  @@index([userId, updatedAt])
 }
 
 /// Past awards, used to estimate what a seniority number can hold. One row per awarded pairing, or

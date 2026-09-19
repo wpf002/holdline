@@ -1,8 +1,16 @@
 "use client";
 
 import { WAIVER_KEYS, type BidIntent, type CompileResponse } from "@holdline/types";
-import { useId, useRef, useState } from "react";
-import { compileBid, parseDescription, vendorName, type AirlineOption } from "../lib/api";
+import { useEffect, useId, useRef, useState } from "react";
+import {
+  compileBid,
+  getBid,
+  getDefaultBid,
+  parseDescription,
+  vendorName,
+  type AirlineOption,
+  type SavedBid,
+} from "../lib/api";
 import {
   LONGEST_TRIP,
   describePreference,
@@ -16,7 +24,9 @@ import { CreditInputs, NumberSelect, SpecificPairings, TimeField } from "./field
 import { PriorityList } from "./priority-list";
 import { Section } from "./section";
 import { Segmented } from "./segmented";
+import { SaveBid } from "./save-bid";
 import { StationList } from "./station-list";
+import { useAccount } from "../lib/use-account";
 
 type Crew = BidIntent["crewGroup"];
 const CREW_LABELS: Record<Crew, string> = { PILOT: "Pilot", FLIGHT_ATTENDANT: "Flight attendant" };
@@ -63,6 +73,60 @@ export function BidBuilder({
   const [buildError, setBuildError] = useState<string | null>(null);
   const [result, setResult] = useState<{ bid: CompileResponse; builtFrom: string } | null>(null);
   const outputRef = useRef<HTMLElement>(null);
+  const { account } = useAccount(apiUrl);
+  const [defaultBid, setDefaultBid] = useState<SavedBid | null>(null);
+  const [loadNote, setLoadNote] = useState<string | null>(null);
+  const accountApplied = useRef(false);
+
+  // Once signed in: open ?bid=<id>, or start an empty form from the account's defaults.
+  useEffect(() => {
+    if (!account || accountApplied.current) return;
+    accountApplied.current = true;
+    const id = new URLSearchParams(window.location.search).get("bid");
+    if (id) {
+      void getBid(apiUrl, id).then((res) => {
+        if (!res.ok) return setLoadNote(res.message);
+        setDraft(res.data.bid.intent);
+        setFormVersion((v) => v + 1);
+        setLoadNote(`Opened "${res.data.bid.name ?? monthLabel(res.data.bid.month)}".`);
+      });
+      return;
+    }
+    setDraft((d) =>
+      d.airline
+        ? d
+        : {
+            ...d,
+            airline: account.airline ?? "",
+            crewGroup: account.crewGroup ?? d.crewGroup,
+            base: account.base ?? "",
+          },
+    );
+    if (account.seniority) setSeniority((s) => s || String(account.seniority));
+    void getDefaultBid(apiUrl).then((res) => {
+      if (res.ok) setDefaultBid(res.data.bid);
+    });
+  }, [account, apiUrl]);
+
+  /** A default bid carries its patterns into any month; its dates only fit the month it was saved for. */
+  function startFromDefault() {
+    if (!defaultBid) return;
+    const saved = defaultBid.intent;
+    const sameMonth = saved.month === draft.month;
+    setDraft({
+      ...saved,
+      month: draft.month,
+      daysOff: sameMonth ? saved.daysOff : { ...saved.daysOff, dates: [], ranges: [] },
+      pairings: sameMonth ? saved.pairings : { ...saved.pairings, specific: [] },
+    });
+    setFormVersion((v) => v + 1);
+    setLoadNote(
+      sameMonth
+        ? "Started from your default bid."
+        : `Started from your default bid. Its ${monthLabel(saved.month)} dates were left out.`,
+    );
+    setDefaultBid(null);
+  }
 
   const airline = airlines.find((a) => a.code === draft.airline);
   const deployment = airline?.deployments.find((d) => d.crewGroup === draft.crewGroup);
@@ -149,6 +213,24 @@ export function BidBuilder({
     <div className="workspace">
       <div className="inputs">
         <Section id="context-title" step="01" title="Bid month">
+          {defaultBid && (
+            <div className="notice">
+              <p>
+                You have a default bid
+                {defaultBid.name ? <> (&ldquo;{defaultBid.name}&rdquo;)</> : null}.
+              </p>
+              <div className="actions">
+                <button type="button" className="button" onClick={startFromDefault}>
+                  Start from it
+                </button>
+              </div>
+            </div>
+          )}
+          {loadNote && (
+            <p className="hint" role="status">
+              {loadNote}
+            </p>
+          )}
           <div className="row">
             <div className="field">
               <label className="label" htmlFor={ids.airline}>
@@ -491,6 +573,8 @@ export function BidBuilder({
                 stale={stale}
                 poolHint={request.lineType === "LINEHOLDER"}
               />
+              <hr className="divider" />
+              <SaveBid apiUrl={apiUrl} account={account} intent={request} />
             </div>
           ) : (
             <div className="bid-empty">
