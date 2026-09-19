@@ -123,6 +123,12 @@ describe("NAVBLUE compiler", () => {
         "Award Pairings",
       ],
     ]);
+    expect(withCredit(65, 72).groups[0]!.lines[2]!.uiPath).toEqual([
+      "Prefer Off",
+      "Dates List",
+      "Click Oct 31",
+      "Apply",
+    ]);
     expect(texts(withCredit(95, 105))[0]![1]).toBe("Set Condition Maximum Credit Window");
 
     const normal = withCredit(75, 85);

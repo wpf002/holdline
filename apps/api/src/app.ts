@@ -1,7 +1,15 @@
 import cors from "@fastify/cors";
 import { UnsupportedVendorError, compile } from "@holdline/core";
-import { BidIntent, DeploymentConfig, type PbsVendor } from "@holdline/types";
+import {
+  BidIntent,
+  BidIntentDraft,
+  DeploymentConfig,
+  ParseRequest,
+  type ParseResponse,
+  type PbsVendor,
+} from "@holdline/types";
 import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
+import { ParserError, type Parser } from "./parse.js";
 
 type CrewGroup = BidIntent["crewGroup"];
 
@@ -29,8 +37,14 @@ const CREW_NAMES: Record<CrewGroup, string> = {
   FLIGHT_ATTENDANT: "flight attendants",
 };
 
+export interface Deps {
+  store: Store;
+  /** Absent when ANTHROPIC_API_KEY isn't set; /bids/parse then answers 503. */
+  parser?: Parser;
+}
+
 export async function buildApp(
-  store: Store,
+  { store, parser }: Deps,
   opts: { corsOrigins?: string[]; logger?: boolean } = {},
 ) {
   const app = Fastify({ logger: opts.logger ?? false });
@@ -77,13 +91,38 @@ export async function buildApp(
       return bid;
     } catch (err) {
       if (err instanceof UnsupportedVendorError) {
-        return reply
-          .code(501)
-          .send({
-            error: "not_implemented",
-            todo: `${err.vendor} compiler (build step 5+)`,
-            vendor: err.vendor,
-          });
+        return reply.code(501).send({
+          error: "not_implemented",
+          todo: `${err.vendor} compiler (build step 5+)`,
+          vendor: err.vendor,
+        });
+      }
+      throw err;
+    }
+  });
+
+  // Plain English -> draft intent. The form stays the source of truth; this only pre-fills it.
+  app.post("/bids/parse", async (req, reply) => {
+    const body = ParseRequest.safeParse(req.body);
+    if (!body.success) {
+      return reply.code(400).send({ error: "invalid_request", issues: body.error.issues });
+    }
+    if (!parser) {
+      return reply.code(503).send({
+        error: "parser_not_configured",
+        todo: "Set ANTHROPIC_API_KEY for the API to turn on plain-English parsing.",
+      });
+    }
+    try {
+      const { preferences, questions } = await parser(body.data);
+      const intent = preferences
+        ? BidIntentDraft.parse({ ...preferences, ...body.data.context })
+        : null;
+      return { intent, questions } satisfies ParseResponse;
+    } catch (err) {
+      if (err instanceof ParserError) {
+        req.log.warn({ reason: err.reason, status: err.upstreamStatus }, "parser failed");
+        return reply.code(502).send({ error: "parser_failed", reason: err.reason });
       }
       throw err;
     }
@@ -92,7 +131,6 @@ export async function buildApp(
   const todo = (what: string) => async (_req: FastifyRequest, reply: FastifyReply) =>
     reply.code(501).send({ error: "not_implemented", todo: what });
 
-  app.post("/bids/parse", todo("plain English -> BidIntent via Anthropic tool use (phase 2)"));
   app.post("/bid-periods/import", todo("pairing file parser per airline (phase 3)"));
 
   return app;

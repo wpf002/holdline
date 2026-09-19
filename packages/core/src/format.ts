@@ -1,4 +1,4 @@
-import type { PreferenceKey, Weekday } from "@holdline/types";
+import type { Weekday } from "@holdline/types";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const MONTHS_LONG = [
@@ -24,17 +24,6 @@ export const WEEKDAY_NAMES: Record<Weekday, string> = {
   FRI: "Friday",
   SAT: "Saturday",
   SUN: "Sunday",
-};
-
-/** Plain-English names for warnings shown to crew. */
-export const PREFERENCE_NAMES: Record<PreferenceKey, string> = {
-  daysOff: "days off",
-  pairingLength: "trip length",
-  reportRelease: "report/release times",
-  layovers: "layovers",
-  specificPairings: "specific pairings",
-  credit: "credit",
-  workBlocks: "work blocks",
 };
 
 const pad = (n: number, width = 2) => String(n).padStart(width, "0");

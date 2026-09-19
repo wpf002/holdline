@@ -1,5 +1,7 @@
 import {
+  PREFERENCE_NAMES,
   PreferenceKey,
+  hasPreference,
   type BidIntent,
   type CompiledBid,
   type CompiledGroup,
@@ -7,7 +9,6 @@ import {
   type DeploymentConfig,
 } from "@holdline/types";
 import {
-  PREFERENCE_NAMES,
   WEEKDAY_NAMES,
   hours,
   longDate,
@@ -58,18 +59,6 @@ const BUILDERS: Record<PreferenceKey, (c: Ctx) => Part> = {
   workBlocks,
 };
 
-const HAS_CONTENT: Record<PreferenceKey, (i: BidIntent) => boolean> = {
-  daysOff: ({ daysOff: d }) =>
-    d.dates.length + d.ranges.length + d.daysOfWeek.length > 0 || d.weekends,
-  pairingLength: (i) => i.pairings.lengthDays !== undefined,
-  reportRelease: (i) => Boolean(i.pairings.reportAfter || i.pairings.releaseBefore),
-  layovers: (i) => i.pairings.preferLayovers.length + i.pairings.avoidLayovers.length > 0,
-  specificPairings: (i) => i.pairings.specific.length > 0,
-  credit: (i) => i.line.creditMinutes !== undefined,
-  workBlocks: (i) =>
-    i.line.maxDaysOn !== undefined || i.line.minDaysOffInARow !== undefined || i.line.commutable,
-};
-
 export function compileNavblue(intent: BidIntent, config: DeploymentConfig = {}): CompiledBid {
   const warnings: string[] = [];
   const c: Ctx = { intent, config, L: navblueLabels(config.labels), warn: (m) => warnings.push(m) };
@@ -78,7 +67,7 @@ export function compileNavblue(intent: BidIntent, config: DeploymentConfig = {})
   const built = new Map<PreferenceKey, Part>();
   for (const key of PreferenceKey.options) {
     if (reserve && !RESERVE_KEYS.has(key)) {
-      if (HAS_CONTENT[key](intent)) {
+      if (hasPreference(intent, key)) {
         c.warn(`Skipped ${PREFERENCE_NAMES[key]}: not available in a NAVBLUE reserve group.`);
       }
       continue;
@@ -261,6 +250,10 @@ function hardAvoids(c: Ctx): CompiledLine[] {
 
 // ── Preferences ───────────────────────────────────────────────────────
 
+/** Selection order is the priority order on a Prefer Off list (AC_GUIDE p.5-9). */
+const clickInOrder = (items: string[]) =>
+  items.length > 1 ? `Click ${items.join(", ")} in that order` : `Click ${items[0]}`;
+
 function daysOff(c: Ctx): Part {
   const { L, intent } = c;
   const { dates, ranges, daysOfWeek, weekends } = intent.daysOff;
@@ -285,10 +278,7 @@ function daysOff(c: Ctx): Part {
     );
   const kept = list.filter((d) => d >= first && d <= last);
   if (kept.length) {
-    add(kept.map(shortDate).join(", "), [
-      L("ui.datesList"),
-      `Click ${kept.map(monthDay).join(", ")} in that order`,
-    ]);
+    add(kept.map(shortDate).join(", "), [L("ui.datesList"), clickInOrder(kept.map(monthDay))]);
   }
 
   for (const r of ranges) {
@@ -308,8 +298,7 @@ function daysOff(c: Ctx): Part {
   }
 
   const days = [...new Set(daysOfWeek)].map((d) => WEEKDAY_NAMES[d]);
-  if (days.length)
-    add(days.join(", "), [L("ui.daysOfWeekList"), `Click ${days.join(", ")} in that order`]);
+  if (days.length) add(days.join(", "), [L("ui.daysOfWeekList"), clickInOrder(days)]);
   // A blank Minimum asks for as many weekends off as possible (AC_GUIDE p.5-14).
   if (weekends) add(L("preferOff.weekends"), [L("preferOff.weekends"), "Leave Minimum blank"]);
   return { negatives: out, awards: [] };

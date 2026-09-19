@@ -90,3 +90,41 @@ export const BidIntent = z.object({
   priorities: z.array(PreferenceKey).min(1),
 });
 export type BidIntent = z.infer<typeof BidIntent>;
+
+/** A BidIntent still being edited: priorities may be empty. The form and the parser produce this. */
+export const BidIntentDraft = BidIntent.extend({
+  priorities: z.array(PreferenceKey).default([]),
+});
+
+/** Plain-English names for crew-facing text. */
+export const PREFERENCE_NAMES: Record<PreferenceKey, string> = {
+  daysOff: "days off",
+  pairingLength: "trip length",
+  reportRelease: "report/release times",
+  layovers: "layovers",
+  specificPairings: "specific pairings",
+  credit: "credit",
+  workBlocks: "work blocks",
+};
+
+const HAS_CONTENT: Record<PreferenceKey, (i: BidIntent) => boolean> = {
+  daysOff: ({ daysOff: d }) =>
+    d.dates.length + d.ranges.length + d.daysOfWeek.length > 0 || d.weekends,
+  pairingLength: (i) => i.pairings.lengthDays !== undefined,
+  reportRelease: (i) => Boolean(i.pairings.reportAfter || i.pairings.releaseBefore),
+  layovers: (i) => i.pairings.preferLayovers.length + i.pairings.avoidLayovers.length > 0,
+  specificPairings: (i) => i.pairings.specific.length > 0,
+  credit: (i) => i.line.creditMinutes !== undefined,
+  workBlocks: (i) =>
+    i.line.maxDaysOn !== undefined || i.line.minDaysOffInARow !== undefined || i.line.commutable,
+};
+
+/** Whether the intent says anything about this preference. */
+export function hasPreference(intent: BidIntent, key: PreferenceKey): boolean {
+  return HAS_CONTENT[key](intent);
+}
+
+/** Preference keys the intent says something about, in canonical order. */
+export function preferencesInUse(intent: BidIntent): PreferenceKey[] {
+  return PreferenceKey.options.filter((k) => HAS_CONTENT[k](intent));
+}

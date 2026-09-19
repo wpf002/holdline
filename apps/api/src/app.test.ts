@@ -1,6 +1,7 @@
-import type { CompiledBid } from "@holdline/types";
+import { BidPreferences, type CompiledBid, type ParseResponse } from "@holdline/types";
 import { describe, expect, it } from "vitest";
-import { buildApp, type AirlineRecord } from "./app.js";
+import { buildApp, type AirlineRecord, type Store } from "./app.js";
+import { ParserError, type Parser } from "./parse.js";
 
 const airlines: AirlineRecord[] = [
   {
@@ -35,10 +36,25 @@ const airlines: AirlineRecord[] = [
   },
 ];
 
-const app = await buildApp({
+const store: Store = {
   listAirlines: async () => airlines,
   findAirline: async (code) => airlines.find((a) => a.code === code) ?? null,
-});
+};
+
+/** Stands in for the Anthropic-backed parser; parse.test.ts covers the real one. */
+const parser: Parser = async ({ text }) => {
+  if (text === "refuse") throw new ParserError("refused");
+  if (text === "vague") return { preferences: null, questions: ["Which days do you want off?"] };
+  return {
+    preferences: BidPreferences.parse({
+      daysOff: { ranges: [{ start: "2026-10-10", end: "2026-10-12" }] },
+      priorities: ["daysOff"],
+    }),
+    questions: ["Any trip length preference?"],
+  };
+};
+
+const app = await buildApp({ store, parser });
 
 const intent = {
   airline: "eny",
@@ -99,5 +115,39 @@ describe("POST /bids/compile", () => {
 
   it("500 when the stored deployment config is malformed", async () => {
     expect((await post({ ...intent, airline: "BAD" })).statusCode).toBe(500);
+  });
+});
+
+describe("POST /bids/parse", () => {
+  const context = { airline: "ENY", crewGroup: "PILOT", month: "2026-10", base: "DFW" };
+  const parse = (payload: object, target = app) =>
+    target.inject({ method: "POST", url: "/bids/parse", payload });
+
+  it("returns a draft intent with the form's context and the parser's questions", async () => {
+    const res = await parse({ text: "Off the 10th through 12th", context });
+    expect(res.statusCode).toBe(200);
+    const body = res.json<ParseResponse>();
+    expect(body.intent).toMatchObject({
+      ...context,
+      lineType: "LINEHOLDER",
+      daysOff: { ranges: [{ start: "2026-10-10", end: "2026-10-12" }] },
+      priorities: ["daysOff"],
+    });
+    expect(body.questions).toEqual(["Any trip length preference?"]);
+  });
+
+  it("passes questions through when the parser couldn't fill anything", async () => {
+    const res = await parse({ text: "vague", context });
+    expect(res.json()).toEqual({ intent: null, questions: ["Which days do you want off?"] });
+  });
+
+  it("400 on a bad request, 502 when the parser fails, 503 when it isn't configured", async () => {
+    expect((await parse({ text: "  ", context })).statusCode).toBe(400);
+    const failed = await parse({ text: "refuse", context });
+    expect(failed.statusCode).toBe(502);
+    expect(failed.json()).toEqual({ error: "parser_failed", reason: "refused" });
+    const unconfigured = await parse({ text: "Off the 10th", context }, await buildApp({ store }));
+    expect(unconfigured.statusCode).toBe(503);
+    expect(unconfigured.json().error).toBe("parser_not_configured");
   });
 });

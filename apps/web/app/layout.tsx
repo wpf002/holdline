@@ -1,11 +1,17 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import "./globals.css";
 
-export const metadata = { title: "Holdline", description: "Plain-English PBS bids" };
+export const metadata: Metadata = {
+  title: "Holdline",
+  description:
+    "Turns what you want from next month's schedule into a PBS bid you can enter line by line.",
+};
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body style={{ fontFamily: "system-ui, sans-serif", margin: 0 }}>{children}</body>
+      <body>{children}</body>
     </html>
   );
 }

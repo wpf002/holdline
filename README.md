@@ -2,7 +2,7 @@
 
 Holdline turns a crew member's plain-English schedule wishes into a correct, ordered PBS bid for their airline's bidding system. It's the QuickBid experience (say what you want, get it sorted) rebuilt for Preferential Bidding Systems, where there are no lines to rank and the bid has to be written in the vendor's rule language.
 
-**Status:** build step 1. `/airlines` and `POST /bids/compile` (NAVBLUE only, `syntaxVerified: false`) are live; other vendors, parsing and pairing import return 501.
+**Status:** build steps 1–3. The web form builds a `BidIntent`, `POST /bids/compile` turns it into a NAVBLUE bid (`syntaxVerified: false`), and the bid view shows colour-coded lines with entry steps. `POST /bids/parse` pre-fills the form from plain English once `ANTHROPIC_API_KEY` is set (503 without it). Other vendors and pairing import return 501.
 
 ## Stack
 
@@ -38,7 +38,7 @@ curl localhost:4000/airlines    # real rows from Postgres
 | `API_PORT` | no (4000) | Local only; Railway sets `PORT` |
 | `CORS_ORIGINS` | no | Comma-separated web origins. Railway: the web service's public URL |
 | `NEXT_PUBLIC_API_URL` | yes for web | API public URL |
-| `ANTHROPIC_API_KEY` | phase 2 | console.anthropic.com -> API Keys |
+| `ANTHROPIC_API_KEY` | for `/bids/parse` | console.anthropic.com -> API Keys. Without it the parser returns 503 and the form still works |
 | `ANTHROPIC_MODEL` | no | Model ID used for parsing |
 
 ## Project structure
