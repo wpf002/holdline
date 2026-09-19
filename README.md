@@ -2,7 +2,7 @@
 
 Holdline turns a crew member's plain-English schedule wishes into a correct, ordered PBS bid for their airline's bidding system. It's the QuickBid experience (say what you want, get it sorted) rebuilt for Preferential Bidding Systems, where there are no lines to rank and the bid has to be written in the vendor's rule language.
 
-**Status:** build steps 1–3. The web form builds a `BidIntent`, `POST /bids/compile` turns it into a NAVBLUE bid (`syntaxVerified: false`), and the bid view shows colour-coded lines with entry steps. `POST /bids/parse` pre-fills the form from plain English once `ANTHROPIC_API_KEY` is set (503 without it). Other vendors and pairing import return 501.
+**Status:** build steps 1–4. The web form builds a `BidIntent`, `POST /bids/compile` turns it into a NAVBLUE bid (`syntaxVerified: false`), and the bid view shows colour-coded lines with entry steps. `POST /bids/parse` pre-fills the form from plain English once `ANTHROPIC_API_KEY` is set (503 without it). `POST /bid-periods/import` loads a month of pairings in Holdline's CSV or JSON format ([docs/pairing-import.md](docs/pairing-import.md)) so each line shows how many pairings it removes. Airline pairing exports need a reader once a sample exists.
 
 ## Stack
 

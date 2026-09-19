@@ -1,19 +1,24 @@
 import cors from "@fastify/cors";
-import { UnsupportedVendorError, compile } from "@holdline/core";
+import { UnsupportedVendorError, compile, parsePairingFile, previewPool } from "@holdline/core";
 import {
   BidIntent,
   BidIntentDraft,
   DeploymentConfig,
+  ImportRequest,
   ParseRequest,
+  type CompileResponse,
+  type ImportResponse,
+  type Pairing,
   type ParseResponse,
   type PbsVendor,
 } from "@holdline/types";
-import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
+import Fastify, { type FastifyReply } from "fastify";
 import { ParserError, type Parser } from "./parse.js";
 
 type CrewGroup = BidIntent["crewGroup"];
 
 export interface DeploymentRecord {
+  id: string;
   crewGroup: CrewGroup;
   vendor: PbsVendor;
   confidence: "CONFIRMED" | "THIRD_PARTY" | "INFERRED";
@@ -26,10 +31,30 @@ export interface AirlineRecord {
   deployments: DeploymentRecord[];
 }
 
-/** What the routes read. server.ts backs this with Prisma; tests pass fixtures. */
+export interface PairingPeriod {
+  importedAt: Date;
+  pairings: Pairing[];
+}
+
+/** What the routes read and write. store.ts backs this with Prisma; tests pass fixtures. */
 export interface Store {
   listAirlines(): Promise<unknown>;
   findAirline(code: string): Promise<AirlineRecord | null>;
+  /** The imported pairings for one deployment, base and month, or null if none were imported. */
+  loadPairings(deploymentId: string, base: string, month: string): Promise<PairingPeriod | null>;
+  /** Replaces the pairings for one deployment, base and month. */
+  savePairings(
+    deploymentId: string,
+    base: string,
+    month: string,
+    pairings: Pairing[],
+  ): Promise<void>;
+}
+
+export interface Deps {
+  store: Store;
+  /** Absent when ANTHROPIC_API_KEY isn't set; /bids/parse then answers 503. */
+  parser?: Parser;
 }
 
 const CREW_NAMES: Record<CrewGroup, string> = {
@@ -37,11 +62,8 @@ const CREW_NAMES: Record<CrewGroup, string> = {
   FLIGHT_ATTENDANT: "flight attendants",
 };
 
-export interface Deps {
-  store: Store;
-  /** Absent when ANTHROPIC_API_KEY isn't set; /bids/parse then answers 503. */
-  parser?: Parser;
-}
+/** A month of pairings for one base is a few MB at most. */
+const IMPORT_BODY_LIMIT = 10 * 1024 * 1024;
 
 export async function buildApp(
   { store, parser }: Deps,
@@ -50,6 +72,21 @@ export async function buildApp(
   const app = Fastify({ logger: opts.logger ?? false });
   await app.register(cors, { origin: opts.corsOrigins ?? false });
 
+  /** The PBS deployment for an airline and crew group; answers 404 and returns null when missing. */
+  async function findDeployment(code: string, crewGroup: CrewGroup, reply: FastifyReply) {
+    const airline = await store.findAirline(code);
+    if (!airline) {
+      reply.code(404).send({ error: "unknown_airline", airline: code });
+      return null;
+    }
+    const deployment = airline.deployments.find((d) => d.crewGroup === crewGroup);
+    if (!deployment) {
+      reply.code(404).send({ error: "no_pbs_deployment", airline: airline.code, crewGroup });
+      return null;
+    }
+    return { airline, deployment };
+  }
+
   app.get("/health", async () => ({ ok: true }));
 
   // Vertical slice: real rows from Postgres.
@@ -57,19 +94,18 @@ export async function buildApp(
 
   app.post("/bids/compile", async (req, reply) => {
     const parsed = BidIntent.safeParse(req.body);
-    if (!parsed.success)
+    if (!parsed.success) {
       return reply.code(400).send({ error: "invalid_intent", issues: parsed.error.issues });
-    const intent = { ...parsed.data, airline: parsed.data.airline.toUpperCase() };
-
-    const airline = await store.findAirline(intent.airline);
-    if (!airline)
-      return reply.code(404).send({ error: "unknown_airline", airline: intent.airline });
-    const deployment = airline.deployments.find((d) => d.crewGroup === intent.crewGroup);
-    if (!deployment) {
-      return reply
-        .code(404)
-        .send({ error: "no_pbs_deployment", airline: airline.code, crewGroup: intent.crewGroup });
     }
+    const intent = {
+      ...parsed.data,
+      airline: parsed.data.airline.toUpperCase(),
+      base: parsed.data.base.toUpperCase(),
+    };
+    const found = await findDeployment(intent.airline, intent.crewGroup, reply);
+    if (!found) return reply;
+    const { airline, deployment } = found;
+
     const config = DeploymentConfig.safeParse(deployment.config);
     if (!config.success) {
       req.log.error(
@@ -79,26 +115,33 @@ export async function buildApp(
       return reply.code(500).send({ error: "invalid_deployment_config" });
     }
 
+    let bid;
     try {
-      const bid = compile(intent, deployment.vendor, config.data);
-      if (deployment.confidence !== "CONFIRMED") {
-        const basis =
-          deployment.confidence === "INFERRED" ? "inferred" : "from a third-party source";
-        bid.warnings.push(
-          `${airline.name} ${CREW_NAMES[intent.crewGroup]} on ${deployment.vendor}: ${basis}, not confirmed by the airline or union. Check your bid screen matches before entering.`,
-        );
-      }
-      return bid;
+      bid = compile(intent, deployment.vendor, config.data);
     } catch (err) {
       if (err instanceof UnsupportedVendorError) {
         return reply.code(501).send({
           error: "not_implemented",
-          todo: `${err.vendor} compiler (build step 5+)`,
+          todo: `${err.vendor} compiler`,
           vendor: err.vendor,
         });
       }
       throw err;
     }
+    if (deployment.confidence !== "CONFIRMED") {
+      const basis = deployment.confidence === "INFERRED" ? "inferred" : "from a third-party source";
+      bid.warnings.push(
+        `${airline.name} ${CREW_NAMES[intent.crewGroup]} on ${deployment.vendor}: ${basis}, not confirmed by the airline or union. Check your bid screen matches before entering.`,
+      );
+    }
+
+    // Reserve groups don't draw from the pairing pool, so only line bids get counts.
+    const period =
+      intent.lineType === "LINEHOLDER"
+        ? await store.loadPairings(deployment.id, intent.base, intent.month)
+        : null;
+    const preview = period ? previewPool(bid, period.pairings, period.importedAt) : null;
+    return { ...bid, preview } satisfies CompileResponse;
   });
 
   // Plain English -> draft intent. The form stays the source of truth; this only pre-fills it.
@@ -128,10 +171,26 @@ export async function buildApp(
     }
   });
 
-  const todo = (what: string) => async (_req: FastifyRequest, reply: FastifyReply) =>
-    reply.code(501).send({ error: "not_implemented", todo: what });
+  // One bid period's pairings in a Holdline format (docs/pairing-import.md). Replaces any earlier
+  // import for the same airline, crew group, base and month.
+  app.post("/bid-periods/import", { bodyLimit: IMPORT_BODY_LIMIT }, async (req, reply) => {
+    const body = ImportRequest.safeParse(req.body);
+    if (!body.success) {
+      return reply.code(400).send({ error: "invalid_request", issues: body.error.issues });
+    }
+    const request = {
+      ...body.data,
+      airline: body.data.airline.toUpperCase(),
+      base: body.data.base.toUpperCase(),
+    };
+    const found = await findDeployment(request.airline, request.crewGroup, reply);
+    if (!found) return reply;
 
-  app.post("/bid-periods/import", todo("pairing file parser per airline (phase 3)"));
+    const { pairings, errors } = parsePairingFile(request.format, request.data);
+    if (pairings.length === 0) return reply.code(422).send({ error: "no_pairings", errors });
+    await store.savePairings(found.deployment.id, request.base, request.month, pairings);
+    return { imported: pairings.length, errors } satisfies ImportResponse;
+  });
 
   return app;
 }

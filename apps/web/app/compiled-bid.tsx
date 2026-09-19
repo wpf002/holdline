@@ -1,6 +1,7 @@
 "use client";
 
-import type { CompiledBid, CompiledLine } from "@holdline/types";
+import type { CompileResponse, CompiledBid, CompiledLine, LinePreview } from "@holdline/types";
+import Link from "next/link";
 import { useState } from "react";
 import { VENDOR_NAMES } from "../lib/api";
 
@@ -36,7 +37,29 @@ function asText(bid: CompiledBid): string {
     .trim();
 }
 
-export function CompiledBidView({ bid, stale }: { bid: CompiledBid; stale: boolean }) {
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+/** What one line does to the imported pairing pool, in crew terms. */
+function poolNote(line: CompiledLine, count: LinePreview): string {
+  const unknown = count.unknown ? ` ${plural(count.unknown, "pairing")} couldn't be checked.` : "";
+  if (line.match?.type === "any") {
+    return `${plural(count.matched, "pairing")} left to build your line from.`;
+  }
+  if (line.kind === "AWARD")
+    return `${plural(count.matched, "pairing")} in the pool match.${unknown}`;
+  return `Removes ${plural(count.matched, "pairing")}, ${count.poolAfter} left.${unknown}`;
+}
+
+export function CompiledBidView({
+  bid,
+  stale,
+  poolHint,
+}: {
+  bid: CompileResponse;
+  stale: boolean;
+  /** Offer the pairing import when there's no preview for a line bid. */
+  poolHint: boolean;
+}) {
   const [done, setDone] = useState<Set<string>>(() => new Set());
   const [copied, setCopied] = useState<string | null>(null);
   const numbers = numberLines(bid);
@@ -95,6 +118,22 @@ export function CompiledBidView({ bid, stale }: { bid: CompiledBid; stale: boole
         )
       )}
 
+      {bid.preview ? (
+        <p className="hint">
+          Counts use {plural(bid.preview.pairings, "pairing")} imported{" "}
+          {new Date(bid.preview.importedAt).toLocaleDateString()}. Pairings that clash with your
+          days off, or that a line above has already removed, drop out of the pool for the lines
+          below.
+        </p>
+      ) : (
+        poolHint && (
+          <p className="hint">
+            <Link href="/pairings">Import this month&apos;s pairings</Link> to see how many pairings
+            each line removes.
+          </p>
+        )
+      )}
+
       <div className="actions">
         <p className="progress" aria-live="polite">
           {done.size} of {total} lines entered
@@ -109,6 +148,7 @@ export function CompiledBidView({ bid, stale }: { bid: CompiledBid; stale: boole
           <h3>{group.label}</h3>
           <ol className="bid-lines">
             {group.lines.map((line, li) => {
+              const counts = bid.preview?.groups[gi]?.lines;
               const id = `${gi}-${li}`;
               const n = numbers[gi]![li];
               if (n === null) {
@@ -119,6 +159,7 @@ export function CompiledBidView({ bid, stale }: { bid: CompiledBid; stale: boole
                     <div className="bid-body">
                       <p className="bid-text">{line.text}</p>
                       <p className="hint">Added automatically.</p>
+                      {counts?.[li] && <p className="pool-note">{poolNote(line, counts[li]!)}</p>}
                     </div>
                   </li>
                 );
@@ -142,6 +183,7 @@ export function CompiledBidView({ bid, stale }: { bid: CompiledBid; stale: boole
                         <li key={si}>{step}</li>
                       ))}
                     </ol>
+                    {counts?.[li] && <p className="pool-note">{poolNote(line, counts[li]!)}</p>}
                   </div>
                   {line.kind !== "SYSTEM" && (
                     <button

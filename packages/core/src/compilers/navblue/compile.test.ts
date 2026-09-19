@@ -41,6 +41,7 @@ describe("NAVBLUE compiler", () => {
       text: "Prefer Off Oct 24, 2026, Oct 23, 2026, Oct 25, 2026",
       uiPath: ["Prefer Off", "Dates List", "Click Oct 24, Oct 23, Oct 25 in that order", "Apply"],
       preference: "daysOff",
+      match: { type: "worksOn", dates: ["2026-10-24", "2026-10-23", "2026-10-25"] },
     });
   });
 

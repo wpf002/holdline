@@ -3,6 +3,7 @@ import { createDb } from "@holdline/db";
 import { buildApp } from "./app.js";
 import { env } from "./env.js";
 import { createParser } from "./parse.js";
+import { prismaStore } from "./store.js";
 
 const db = createDb(env.DATABASE_URL);
 const anthropic = env.ANTHROPIC_API_KEY
@@ -11,19 +12,7 @@ const anthropic = env.ANTHROPIC_API_KEY
 
 const app = await buildApp(
   {
-    store: {
-      listAirlines: () =>
-        db.airline.findMany({
-          orderBy: { name: "asc" },
-          include: {
-            deployments: {
-              select: { crewGroup: true, vendor: true, dialect: true, confidence: true },
-            },
-          },
-        }),
-      findAirline: (code) =>
-        db.airline.findUnique({ where: { code }, include: { deployments: true } }),
-    },
+    store: prismaStore(db),
     parser: anthropic
       ? createParser((params) => anthropic.messages.create(params), env.ANTHROPIC_MODEL)
       : undefined,

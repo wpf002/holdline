@@ -7,9 +7,11 @@ import {
   type CompiledGroup,
   type CompiledLine,
   type DeploymentConfig,
+  type PairingMatch,
 } from "@holdline/types";
 import {
   WEEKDAY_NAMES,
+  datesBetween,
   hours,
   longDate,
   monthBounds,
@@ -121,34 +123,40 @@ function line(
   kind: CompiledLine["kind"],
   text: string,
   uiPath: string[],
-  preference?: PreferenceKey,
+  extra: { preference?: PreferenceKey; match?: PairingMatch } = {},
 ): CompiledLine {
-  return preference ? { kind, text, uiPath, preference } : { kind, text, uiPath };
+  const out: CompiledLine = { kind, text, uiPath };
+  if (extra.preference) out.preference = extra.preference;
+  if (extra.match) out.match = extra.match;
+  return out;
 }
 
 function avoid(
   c: Ctx,
   criteria: string,
   steps: string[],
+  match: PairingMatch,
   preference?: PreferenceKey,
 ): CompiledLine {
   const { L } = c;
-  return line(
-    "AVOID",
-    `${L("line.avoid")} ${criteria}`,
-    [L("ui.avoid"), ...steps, L("ui.apply")],
+  return line("AVOID", `${L("line.avoid")} ${criteria}`, [L("ui.avoid"), ...steps, L("ui.apply")], {
     preference,
-  );
+    match,
+  });
 }
 
-function award(c: Ctx, criteria: string, steps: string[], preference: PreferenceKey): CompiledLine {
+function award(
+  c: Ctx,
+  criteria: string,
+  steps: string[],
+  match: PairingMatch,
+  preference: PreferenceKey,
+): CompiledLine {
   const { L } = c;
-  return line(
-    "AWARD",
-    `${L("line.award")} ${criteria}`,
-    [L("ui.award"), ...steps, L("ui.apply")],
+  return line("AWARD", `${L("line.award")} ${criteria}`, [L("ui.award"), ...steps, L("ui.apply")], {
     preference,
-  );
+    match,
+  });
 }
 
 function setCondition(
@@ -163,7 +171,7 @@ function setCondition(
       ? `${L("line.set")} ${condition}`
       : `${L("line.set")} ${condition} ${value}`;
   const steps = value === undefined ? [condition] : [condition, `Enter ${value}`];
-  return line("SET", text, [L("ui.set"), ...steps, L("ui.apply")], preference);
+  return line("SET", text, [L("ui.set"), ...steps, L("ui.apply")], { preference });
 }
 
 // ── Groups ────────────────────────────────────────────────────────────
@@ -181,7 +189,7 @@ function pairingGroup(c: Ctx, lines: CompiledLine[]): CompiledGroup {
     lines: [
       line("SYSTEM", L("group.pairings"), addGroupPath(c, L("ui.pairingGroup"))),
       ...lines,
-      line("SYSTEM", L("group.pairings.end"), []),
+      line("SYSTEM", L("group.pairings.end"), [], { match: { type: "any" } }),
     ],
   };
 }
@@ -225,24 +233,28 @@ function hardAvoids(c: Ctx): CompiledLine[] {
   const { L } = c;
   const p = c.intent.pairings;
   const out: CompiledLine[] = [];
-  if (p.avoidRedeyes) out.push(avoid(c, L("crit.redeye"), [L("ui.redeyes"), "Any"]));
+  if (p.avoidRedeyes) {
+    out.push(avoid(c, L("crit.redeye"), [L("ui.redeyes"), "Any"], { type: "redeye" }));
+  }
   if (p.avoidDeadheads) {
     out.push(
-      avoid(c, `${L("crit.deadheadLegs")} > 0 ${L("unit.legs")}`, [
-        L("crit.deadheadLegs"),
-        L("ui.greaterThan"),
-        "0",
-      ]),
+      avoid(
+        c,
+        `${L("crit.deadheadLegs")} > 0 ${L("unit.legs")}`,
+        [L("crit.deadheadLegs"), L("ui.greaterThan"), "0"],
+        { type: "deadhead" },
+      ),
     );
   }
   if (p.maxLegsPerDuty !== undefined) {
     const n = String(p.maxLegsPerDuty);
     out.push(
-      avoid(c, `${L("crit.dutyLegs")} > ${n} ${L("unit.legs")}`, [
-        L("crit.dutyLegs"),
-        L("ui.greaterThan"),
-        n,
-      ]),
+      avoid(
+        c,
+        `${L("crit.dutyLegs")} > ${n} ${L("unit.legs")}`,
+        [L("crit.dutyLegs"), L("ui.greaterThan"), n],
+        { type: "dutyLegsAbove", legs: p.maxLegsPerDuty },
+      ),
     );
   }
   return out;
@@ -260,13 +272,13 @@ function daysOff(c: Ctx): Part {
   const { first, last } = monthBounds(intent.month);
   const period = monthName(intent.month);
   const out: CompiledLine[] = [];
-  const add = (text: string, steps: string[]) =>
+  const add = (text: string, steps: string[], match: PairingMatch) =>
     out.push(
       line(
         "PREFER_OFF",
         `${L("line.preferOff")} ${text}`,
         [L("ui.preferOff"), ...steps, L("ui.apply")],
-        "daysOff",
+        { preference: "daysOff", match },
       ),
     );
 
@@ -278,7 +290,10 @@ function daysOff(c: Ctx): Part {
     );
   const kept = list.filter((d) => d >= first && d <= last);
   if (kept.length) {
-    add(kept.map(shortDate).join(", "), [L("ui.datesList"), clickInOrder(kept.map(monthDay))]);
+    add(kept.map(shortDate).join(", "), [L("ui.datesList"), clickInOrder(kept.map(monthDay))], {
+      type: "worksOn",
+      dates: kept,
+    });
   }
 
   for (const r of ranges) {
@@ -291,16 +306,27 @@ function daysOff(c: Ctx): Part {
     }
     if (start !== r.start || end !== r.end)
       c.warn(`Trimmed days off ${asked} to the ${period} bid period.`);
-    add(`${shortDate(start)} - ${shortDate(end)}`, [
-      L("ui.datesRange"),
-      `${monthDay(start)} to ${monthDay(end)}`,
-    ]);
+    add(
+      `${shortDate(start)} - ${shortDate(end)}`,
+      [L("ui.datesRange"), `${monthDay(start)} to ${monthDay(end)}`],
+      { type: "worksOn", dates: datesBetween(start, end) },
+    );
   }
 
-  const days = [...new Set(daysOfWeek)].map((d) => WEEKDAY_NAMES[d]);
-  if (days.length) add(days.join(", "), [L("ui.daysOfWeekList"), clickInOrder(days)]);
+  const weekdays = [...new Set(daysOfWeek)];
+  const days = weekdays.map((d) => WEEKDAY_NAMES[d]);
+  if (days.length) {
+    add(days.join(", "), [L("ui.daysOfWeekList"), clickInOrder(days)], {
+      type: "worksOnWeekday",
+      days: weekdays,
+    });
+  }
   // A blank Minimum asks for as many weekends off as possible (AC_GUIDE p.5-14).
-  if (weekends) add(L("preferOff.weekends"), [L("preferOff.weekends"), "Leave Minimum blank"]);
+  if (weekends) {
+    add(L("preferOff.weekends"), [L("preferOff.weekends"), "Leave Minimum blank"], {
+      type: "worksWeekend",
+    });
+  }
   return { negatives: out, awards: [] };
 }
 
@@ -317,6 +343,7 @@ function pairingLength(c: Ctx): Part {
         c,
         `${crit} < ${len.min} ${L("unit.days")}`,
         [crit, L("ui.lessThan"), String(len.min)],
+        { type: "lengthBelow", days: len.min },
         "pairingLength",
       ),
     );
@@ -327,6 +354,7 @@ function pairingLength(c: Ctx): Part {
         c,
         `${crit} > ${len.max} ${L("unit.days")}`,
         [crit, L("ui.greaterThan"), String(len.max)],
+        { type: "lengthAbove", days: len.max },
         "pairingLength",
       ),
     );
@@ -341,13 +369,25 @@ function reportRelease(c: Ctx): Part {
   if (reportAfter) {
     const steps = [L("crit.checkIn"), L("op.before"), reportAfter];
     out.push(
-      avoid(c, `${L("crit.checkIn")} ${L("op.before")} ${reportAfter}`, steps, "reportRelease"),
+      avoid(
+        c,
+        `${L("crit.checkIn")} ${L("op.before")} ${reportAfter}`,
+        steps,
+        { type: "reportBefore", time: reportAfter },
+        "reportRelease",
+      ),
     );
   }
   if (releaseBefore) {
     const steps = [L("crit.checkOut"), L("op.after"), releaseBefore];
     out.push(
-      avoid(c, `${L("crit.checkOut")} ${L("op.after")} ${releaseBefore}`, steps, "reportRelease"),
+      avoid(
+        c,
+        `${L("crit.checkOut")} ${L("op.after")} ${releaseBefore}`,
+        steps,
+        { type: "releaseAfter", time: releaseBefore },
+        "reportRelease",
+      ),
     );
   }
   return { negatives: out, awards: [] };
@@ -365,8 +405,20 @@ function layovers(c: Ctx): Part {
   const crit = (list: string[]) => `${L("crit.layoverIn")} ${list.join(", ")}`;
   const steps = (list: string[]) => [L("ui.layover"), `Select ${list.join(", ")}`];
   return {
-    negatives: avoided.length ? [avoid(c, crit(avoided), steps(avoided), "layovers")] : [],
-    awards: wanted.length ? [award(c, crit(wanted), steps(wanted), "layovers")] : [],
+    negatives: avoided.length
+      ? [
+          avoid(
+            c,
+            crit(avoided),
+            steps(avoided),
+            { type: "layoverIn", stations: avoided },
+            "layovers",
+          ),
+        ]
+      : [],
+    awards: wanted.length
+      ? [award(c, crit(wanted), steps(wanted), { type: "layoverIn", stations: wanted }, "layovers")]
+      : [],
   };
 }
 
@@ -391,7 +443,12 @@ function specificPairings(c: Ctx): Part {
       monthDay(p.date),
       "Award",
     ];
-    awards.push(line("AWARD", text, uiPath, "specificPairings"));
+    awards.push(
+      line("AWARD", text, uiPath, {
+        preference: "specificPairings",
+        match: { type: "pairingOn", number: p.number, date: p.date },
+      }),
+    );
   }
   return { negatives: [], awards };
 }

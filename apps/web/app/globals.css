@@ -732,6 +732,17 @@ p {
   font-weight: 400;
 }
 
+.pool-note {
+  font-size: var(--t-sm);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+a {
+  color: inherit;
+  text-underline-offset: 2px;
+}
+
 .progress {
   font-size: var(--t-sm);
   color: var(--text-muted);

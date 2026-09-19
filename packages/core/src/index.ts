@@ -2,6 +2,7 @@ import type { BidIntent, CompiledBid, DeploymentConfig, PbsVendor } from "@holdl
 import { compileNavblue } from "./compilers/navblue/compile.js";
 
 export { relaxationSteps, resolvePriorities, type Priorities, type RelaxStep } from "./relax.js";
+export * from "./pairings/index.js";
 
 export class UnsupportedVendorError extends Error {
   constructor(public vendor: PbsVendor) {

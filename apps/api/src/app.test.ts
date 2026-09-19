@@ -1,4 +1,10 @@
-import { BidPreferences, type CompiledBid, type ParseResponse } from "@holdline/types";
+import {
+  BidPreferences,
+  type CompileResponse,
+  type CompiledBid,
+  type Pairing,
+  type ParseResponse,
+} from "@holdline/types";
 import { describe, expect, it } from "vitest";
 import { buildApp, type AirlineRecord, type Store } from "./app.js";
 import { ParserError, type Parser } from "./parse.js";
@@ -8,8 +14,15 @@ const airlines: AirlineRecord[] = [
     code: "ENY",
     name: "Envoy Air",
     deployments: [
-      { crewGroup: "PILOT", vendor: "NAVBLUE", confidence: "THIRD_PARTY", config: {} },
       {
+        id: "eny-pilot",
+        crewGroup: "PILOT",
+        vendor: "NAVBLUE",
+        confidence: "THIRD_PARTY",
+        config: {},
+      },
+      {
+        id: "eny-fa",
         crewGroup: "FLIGHT_ATTENDANT",
         vendor: "NAVBLUE",
         confidence: "CONFIRMED",
@@ -20,13 +33,22 @@ const airlines: AirlineRecord[] = [
   {
     code: "UAL",
     name: "United Airlines",
-    deployments: [{ crewGroup: "PILOT", vendor: "JEPPESEN", confidence: "CONFIRMED", config: {} }],
+    deployments: [
+      {
+        id: "ual-pilot",
+        crewGroup: "PILOT",
+        vendor: "JEPPESEN",
+        confidence: "CONFIRMED",
+        config: {},
+      },
+    ],
   },
   {
     code: "BAD",
     name: "Bad Config Air",
     deployments: [
       {
+        id: "bad-pilot",
         crewGroup: "PILOT",
         vendor: "NAVBLUE",
         confidence: "CONFIRMED",
@@ -36,9 +58,18 @@ const airlines: AirlineRecord[] = [
   },
 ];
 
+/** In-memory pairing periods keyed by deployment, base and month. */
+const periods = new Map<string, { importedAt: Date; pairings: Pairing[] }>();
 const store: Store = {
   listAirlines: async () => airlines,
   findAirline: async (code) => airlines.find((a) => a.code === code) ?? null,
+  loadPairings: async (id, base, month) => periods.get(`${id}|${base}|${month}`) ?? null,
+  savePairings: async (id, base, month, pairings) => {
+    periods.set(`${id}|${base}|${month}`, {
+      importedAt: new Date("2026-09-20T12:00:00Z"),
+      pairings,
+    });
+  },
 };
 
 /** Stands in for the Anthropic-backed parser; parse.test.ts covers the real one. */
@@ -149,5 +180,57 @@ describe("POST /bids/parse", () => {
     const unconfigured = await parse({ text: "Off the 10th", context }, await buildApp({ store }));
     expect(unconfigured.statusCode).toBe(503);
     expect(unconfigured.json().error).toBe("parser_not_configured");
+  });
+});
+
+describe("POST /bid-periods/import", () => {
+  const request = { airline: "eny", crewGroup: "PILOT", base: "dfw", month: "2026-10" };
+  const csv = [
+    "pairing,start_date,days,credit,report,layovers",
+    "D101,2026-10-09,3,16:42,07:00,ORD",
+    "D102,2026-10-14,3,15:10,09:00,AUS",
+    "D103,2026-10-15,3,oops,06:30,",
+  ].join("\n");
+  const importFile = (payload: object) =>
+    app.inject({ method: "POST", url: "/bid-periods/import", payload });
+
+  it("stores valid pairings, reports bad rows, and feeds pool counts into /bids/compile", async () => {
+    const res = await importFile({ ...request, format: "holdline-csv", data: csv });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({
+      imported: 2,
+      errors: [{ line: 4, message: "creditMinutes: Invalid input: expected number, received NaN" }],
+    });
+
+    const bid = (
+      await post({ ...intent, daysOff: { dates: ["2026-10-10"] } })
+    ).json<CompileResponse>();
+    expect(bid.preview).toEqual({
+      pairings: 2,
+      importedAt: "2026-09-20T12:00:00.000Z",
+      groups: [
+        {
+          lines: [
+            null,
+            { matched: 1, poolAfter: 1, unknown: 0 },
+            { matched: 1, poolAfter: 1, unknown: 0 },
+          ],
+        },
+      ],
+    });
+
+    const reserve = await post({ ...intent, lineType: "RESERVE" });
+    expect(reserve.json<CompileResponse>().preview).toBeNull();
+  });
+
+  it("422 when nothing in the file is usable, 404 for an unknown airline, 400 for a bad format", async () => {
+    const empty = await importFile({ ...request, format: "holdline-csv", data: "pairing\n" });
+    expect(empty.statusCode).toBe(422);
+    expect(empty.json().error).toBe("no_pairings");
+    expect(
+      (await importFile({ ...request, airline: "ZZZ", format: "holdline-csv", data: csv }))
+        .statusCode,
+    ).toBe(404);
+    expect((await importFile({ ...request, format: "pdf", data: csv })).statusCode).toBe(400);
   });
 });

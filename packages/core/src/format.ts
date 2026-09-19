@@ -68,3 +68,14 @@ export function monthBounds(month: string): { first: string; last: string } {
 export function hours(minutes: number): string {
   return `${Math.floor(minutes / 60)}:${pad(minutes % 60)}`;
 }
+
+/** Every ISO date from start to end, inclusive. */
+export function datesBetween(start: string, end: string): string[] {
+  const out: string[] = [];
+  const [y, m, d] = start.split("-").map(Number);
+  for (let i = 0; ; i++) {
+    const iso = new Date(Date.UTC(y!, m! - 1, d! + i)).toISOString().slice(0, 10);
+    if (iso > end) return out;
+    out.push(iso);
+  }
+}

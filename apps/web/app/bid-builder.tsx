@@ -1,6 +1,6 @@
 "use client";
 
-import { WAIVER_KEYS, type BidIntent, type CompiledBid } from "@holdline/types";
+import { WAIVER_KEYS, type BidIntent, type CompileResponse } from "@holdline/types";
 import { useId, useRef, useState } from "react";
 import { VENDOR_NAMES, compileBid, parseDescription, type AirlineOption } from "../lib/api";
 import {
@@ -54,7 +54,7 @@ export function BidBuilder({
   const [parseError, setParseError] = useState<string | null>(null);
   const [building, setBuilding] = useState(false);
   const [buildError, setBuildError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ bid: CompiledBid; builtFrom: string } | null>(null);
+  const [result, setResult] = useState<{ bid: CompileResponse; builtFrom: string } | null>(null);
   const outputRef = useRef<HTMLElement>(null);
 
   const airline = airlines.find((a) => a.code === draft.airline);
@@ -467,7 +467,12 @@ export function BidBuilder({
               your airline or submits for you.
             </p>
           </div>
-          <CompiledBidView key={result.builtFrom} bid={result.bid} stale={stale} />
+          <CompiledBidView
+            key={result.builtFrom}
+            bid={result.bid}
+            stale={stale}
+            poolHint={request.lineType === "LINEHOLDER"}
+          />
         </section>
       )}
     </div>

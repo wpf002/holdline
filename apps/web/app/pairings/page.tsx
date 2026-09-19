@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { bidMonths } from "../lib/draft";
-import type { AirlineOption } from "../lib/api";
-import { BidBuilder } from "./bid-builder";
+import type { AirlineOption } from "../../lib/api";
+import { bidMonths } from "../../lib/draft";
+import { ImportForm } from "./import-form";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Import pairings · Holdline" };
 
-export default async function Home() {
+export default async function PairingsPage() {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
   let airlines: AirlineOption[] | null = null;
   try {
@@ -18,17 +19,17 @@ export default async function Home() {
   return (
     <main className="page">
       <header className="masthead">
-        <h1>Holdline</h1>
-        <p className="lede">
-          Say what you want from next month&apos;s schedule. Holdline writes your PBS bid in the
-          order PBS reads it, with the clicks to enter each line.
-        </p>
         <p className="hint">
-          <Link href="/pairings">Import pairings</Link> to see how many pairings each line removes.
+          <Link href="/">Holdline</Link>
+        </p>
+        <h1>Import pairings</h1>
+        <p className="lede">
+          Load a month&apos;s pairings for your base, then build your bid to see how many pairings
+          each line removes.
         </p>
       </header>
       {airlines ? (
-        <BidBuilder airlines={airlines} apiUrl={apiUrl} months={bidMonths(new Date())} />
+        <ImportForm airlines={airlines} apiUrl={apiUrl} months={bidMonths(new Date())} />
       ) : (
         <div className="notice notice-danger" role="alert">
           <p className="notice-title">Can&apos;t reach the Holdline API</p>
