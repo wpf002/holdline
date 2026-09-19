@@ -1,0 +1,135 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum CrewGroup {
+  PILOT
+  FLIGHT_ATTENDANT
+}
+
+enum PbsVendor {
+  NAVBLUE
+  JEPPESEN
+  IBS_ADOPT
+  AOS
+  UNKNOWN
+}
+
+enum BidDialect {
+  ORDERED_GROUPS // NAVBLUE, Jeppesen: ordered lines inside bid groups
+  LAYERED // American, AOS: 7 cumulative layers of properties
+  WEIGHTED // IBS/AD OPT: desire/avoid scoring (unconfirmed)
+}
+
+enum SourceConfidence {
+  CONFIRMED
+  THIRD_PARTY
+  INFERRED
+}
+
+model Airline {
+  id          String          @id @default(cuid())
+  code        String          @unique // ICAO, e.g. ENY
+  name        String
+  deployments PbsDeployment[]
+  users       User[]
+}
+
+/// Which PBS an airline runs for one crew group, plus vendor limits/labels.
+model PbsDeployment {
+  id         String           @id @default(cuid())
+  airline    Airline          @relation(fields: [airlineId], references: [id])
+  airlineId  String
+  crewGroup  CrewGroup
+  vendor     PbsVendor
+  dialect    BidDialect
+  confidence SourceConfidence
+  sourceUrl  String?
+  notes      String?
+  /// { maxBidLines?, maxGroups?, layers?, labels?: Record<string,string> }
+  config     Json             @default("{}")
+  bidPeriods BidPeriod[]
+  bids       Bid[]
+  awards     AwardRecord[]
+
+  @@unique([airlineId, crewGroup])
+}
+
+model User {
+  id         String     @id @default(cuid())
+  email      String     @unique
+  airline    Airline?   @relation(fields: [airlineId], references: [id])
+  airlineId  String?
+  crewGroup  CrewGroup?
+  base       String?
+  seniority  Int?
+  createdAt  DateTime   @default(now())
+  bids       Bid[]
+}
+
+/// One month's bid package for one base.
+model BidPeriod {
+  id           String        @id @default(cuid())
+  deployment   PbsDeployment @relation(fields: [deploymentId], references: [id])
+  deploymentId String
+  base         String
+  month        String // YYYY-MM
+  importedAt   DateTime      @default(now())
+  pairings     Pairing[]
+
+  @@unique([deploymentId, base, month])
+}
+
+model Pairing {
+  id            String    @id @default(cuid())
+  bidPeriod     BidPeriod @relation(fields: [bidPeriodId], references: [id], onDelete: Cascade)
+  bidPeriodId   String
+  number        String
+  startDate     DateTime  @db.Date
+  days          Int
+  creditMinutes Int
+  tafbMinutes   Int?
+  reportLocal   String? // HH:MM
+  releaseLocal  String? // HH:MM
+  layovers      String[]
+  legs          Json      @default("[]")
+  raw           Json?
+
+  @@unique([bidPeriodId, number, startDate])
+  @@index([bidPeriodId, days])
+}
+
+model Bid {
+  id           String        @id @default(cuid())
+  user         User          @relation(fields: [userId], references: [id])
+  userId       String
+  deployment   PbsDeployment @relation(fields: [deploymentId], references: [id])
+  deploymentId String
+  month        String
+  intent       Json // BidIntent
+  compiled     Json? // CompiledBid
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+/// Past awards, used later to estimate what a seniority number can hold.
+model AwardRecord {
+  id            String        @id @default(cuid())
+  deployment    PbsDeployment @relation(fields: [deploymentId], references: [id])
+  deploymentId  String
+  base          String
+  month         String
+  seniority     Int
+  pairingNumber String?
+  lineCredit    Int?
+  raw           Json?
+
+  @@index([deploymentId, base, month])
+}

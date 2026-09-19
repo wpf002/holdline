@@ -1,0 +1,14 @@
+node_modules
+dist
+.next
+.turbo
+coverage
+*.tsbuildinfo
+next-env.d.ts
+packages/db/src/generated
+.env
+.env.*
+!.env.example
+.DS_Store
+# pilot data never goes in git: pairing files, award reports, screenshots
+data/private/
