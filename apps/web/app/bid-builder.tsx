@@ -2,7 +2,7 @@
 
 import { WAIVER_KEYS, type BidIntent, type CompileResponse } from "@holdline/types";
 import { useId, useRef, useState } from "react";
-import { VENDOR_NAMES, compileBid, parseDescription, type AirlineOption } from "../lib/api";
+import { compileBid, parseDescription, vendorName, type AirlineOption } from "../lib/api";
 import {
   LONGEST_TRIP,
   describePreference,
@@ -28,8 +28,6 @@ const SOURCE_LABELS = {
   THIRD_PARTY: "Source: a third-party site, not the airline or union.",
   INFERRED: "Inferred from public documents, not confirmed.",
 } as const;
-/** Vendors Holdline can compile today (see packages/core compile()). */
-const SUPPORTED_VENDORS = new Set(["NAVBLUE"]);
 const range = (from: number, to: number) =>
   Array.from({ length: to - from + 1 }, (_, i) => from + i);
 
@@ -59,7 +57,7 @@ export function BidBuilder({
 
   const airline = airlines.find((a) => a.code === draft.airline);
   const deployment = airline?.deployments.find((d) => d.crewGroup === draft.crewGroup);
-  const supported = deployment !== undefined && SUPPORTED_VENDORS.has(deployment.vendor);
+  const supported = deployment?.compilable ?? false;
   const priorities = orderedPriorities(draft);
   const request: BidIntent = { ...draft, base: draft.base.toUpperCase(), priorities };
   const stale = result !== null && result.builtFrom !== JSON.stringify(request);
@@ -214,9 +212,10 @@ export function BidBuilder({
         </div>
         {airline && deployment && (
           <p className="hint">
-            {airline.name} {CREW_PLURAL[draft.crewGroup]} bid in {VENDOR_NAMES[deployment.vendor]}.{" "}
+            {airline.name} {CREW_PLURAL[draft.crewGroup]} bid in{" "}
+            {vendorName(deployment.vendor, deployment.dialect)}.{" "}
             {SOURCE_LABELS[deployment.confidence]}
-            {!supported && ` Holdline can't write ${VENDOR_NAMES[deployment.vendor]} bids yet.`}
+            {!supported && " Holdline can't write bids for it yet."}
           </p>
         )}
       </section>

@@ -81,8 +81,13 @@ export const PairingMatch = z.discriminatedUnion("type", [
   z.object({ type: z.literal("worksWeekend") }),
   z.object({ type: z.literal("lengthBelow"), days: z.number().int() }),
   z.object({ type: z.literal("lengthAbove"), days: z.number().int() }),
+  z.object({ type: z.literal("lengthIs"), days: z.number().int() }),
+  z.object({ type: z.literal("lengthBetween"), min: z.number().int(), max: z.number().int() }),
   z.object({ type: z.literal("reportBefore"), time: HHMM }),
   z.object({ type: z.literal("releaseAfter"), time: HHMM }),
+  /** Report inside [from, to]; from "08:00" to "23:59" means report at or after 08:00. */
+  z.object({ type: z.literal("reportBetween"), from: HHMM, to: HHMM }),
+  z.object({ type: z.literal("releaseBetween"), from: HHMM, to: HHMM }),
   z.object({ type: z.literal("layoverIn"), stations: z.array(z.string()) }),
   z.object({ type: z.literal("pairingOn"), number: z.string(), date: IsoDate }),
   z.object({ type: z.literal("redeye") }),

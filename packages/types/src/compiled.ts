@@ -26,6 +26,12 @@ export const CompiledLine = z.object({
   preference: PreferenceKey.optional(),
   /** What the line selects, for pool previews. Absent when it doesn't filter pairings (Set Condition, Waive). */
   match: PairingMatch.optional(),
+  /**
+   * What the line does to the pool for the lines below it: drop matching pairings, keep only
+   * matching ones (layered pairing properties), or just prefer them. Defaults from `kind`:
+   * AVOID and PREFER_OFF remove, everything else prefers.
+   */
+  effect: z.enum(["remove", "keep", "prefer"]).optional(),
 });
 export type CompiledLine = z.infer<typeof CompiledLine>;
 

@@ -358,9 +358,9 @@ describe("NAVBLUE compiler", () => {
     expect(bid.warnings).toHaveLength(1);
   });
 
-  it("other vendors are not built yet", () => {
-    expect(() => compile(intent({ priorities: ["daysOff"] }), "JEPPESEN")).toThrow(
-      "No compiler for JEPPESEN yet",
+  it("vendors without a compiler throw", () => {
+    expect(() => compile(intent({ priorities: ["daysOff"] }), "IBS_ADOPT")).toThrow(
+      "No compiler for IBS_ADOPT yet",
     );
   });
 });

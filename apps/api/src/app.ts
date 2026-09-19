@@ -1,5 +1,11 @@
 import cors from "@fastify/cors";
-import { UnsupportedVendorError, compile, parsePairingFile, previewPool } from "@holdline/core";
+import {
+  UnsupportedVendorError,
+  canCompile,
+  compile,
+  parsePairingFile,
+  previewPool,
+} from "@holdline/core";
 import {
   BidIntent,
   BidIntentDraft,
@@ -9,6 +15,7 @@ import {
   type CompileResponse,
   type ImportResponse,
   type Pairing,
+  type BidDialect,
   type ParseResponse,
   type PbsVendor,
 } from "@holdline/types";
@@ -21,6 +28,7 @@ export interface DeploymentRecord {
   id: string;
   crewGroup: CrewGroup;
   vendor: PbsVendor;
+  dialect: BidDialect;
   confidence: "CONFIRMED" | "THIRD_PARTY" | "INFERRED";
   config: unknown;
 }
@@ -38,7 +46,7 @@ export interface PairingPeriod {
 
 /** What the routes read and write. store.ts backs this with Prisma; tests pass fixtures. */
 export interface Store {
-  listAirlines(): Promise<unknown>;
+  listAirlines(): Promise<AirlineRecord[]>;
   findAirline(code: string): Promise<AirlineRecord | null>;
   /** The imported pairings for one deployment, base and month, or null if none were imported. */
   loadPairings(deploymentId: string, base: string, month: string): Promise<PairingPeriod | null>;
@@ -89,8 +97,20 @@ export async function buildApp(
 
   app.get("/health", async () => ({ ok: true }));
 
-  // Vertical slice: real rows from Postgres.
-  app.get("/airlines", async () => store.listAirlines());
+  // Airlines with the PBS each crew group uses, and whether Holdline can write bids for it yet.
+  app.get("/airlines", async () =>
+    (await store.listAirlines()).map((a) => ({
+      code: a.code,
+      name: a.name,
+      deployments: a.deployments.map((d) => ({
+        crewGroup: d.crewGroup,
+        vendor: d.vendor,
+        dialect: d.dialect,
+        confidence: d.confidence,
+        compilable: canCompile(d.vendor, d.dialect),
+      })),
+    })),
+  );
 
   app.post("/bids/compile", async (req, reply) => {
     const parsed = BidIntent.safeParse(req.body);
@@ -117,7 +137,7 @@ export async function buildApp(
 
     let bid;
     try {
-      bid = compile(intent, deployment.vendor, config.data);
+      bid = compile(intent, deployment.vendor, config.data, deployment.dialect);
     } catch (err) {
       if (err instanceof UnsupportedVendorError) {
         return reply.code(501).send({

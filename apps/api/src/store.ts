@@ -10,14 +10,7 @@ export function prismaStore(db: Db): Store {
 
   return {
     listAirlines: () =>
-      db.airline.findMany({
-        orderBy: { name: "asc" },
-        include: {
-          deployments: {
-            select: { crewGroup: true, vendor: true, dialect: true, confidence: true },
-          },
-        },
-      }),
+      db.airline.findMany({ orderBy: { name: "asc" }, include: { deployments: true } }),
 
     findAirline: (code) =>
       db.airline.findUnique({ where: { code }, include: { deployments: true } }),

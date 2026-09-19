@@ -18,6 +18,7 @@ const airlines: AirlineRecord[] = [
         id: "eny-pilot",
         crewGroup: "PILOT",
         vendor: "NAVBLUE",
+        dialect: "ORDERED_GROUPS",
         confidence: "THIRD_PARTY",
         config: {},
       },
@@ -25,6 +26,7 @@ const airlines: AirlineRecord[] = [
         id: "eny-fa",
         crewGroup: "FLIGHT_ATTENDANT",
         vendor: "NAVBLUE",
+        dialect: "ORDERED_GROUPS",
         confidence: "CONFIRMED",
         config: { labels: { "group.pairings": "Pairing Bid Group" } },
       },
@@ -38,6 +40,21 @@ const airlines: AirlineRecord[] = [
         id: "ual-pilot",
         crewGroup: "PILOT",
         vendor: "JEPPESEN",
+        dialect: "ORDERED_GROUPS",
+        confidence: "CONFIRMED",
+        config: {},
+      },
+    ],
+  },
+  {
+    code: "RPA",
+    name: "Republic Airways",
+    deployments: [
+      {
+        id: "rpa-pilot",
+        crewGroup: "PILOT",
+        vendor: "IBS_ADOPT",
+        dialect: "WEIGHTED",
         confidence: "CONFIRMED",
         config: {},
       },
@@ -51,6 +68,7 @@ const airlines: AirlineRecord[] = [
         id: "bad-pilot",
         crewGroup: "PILOT",
         vendor: "NAVBLUE",
+        dialect: "ORDERED_GROUPS",
         confidence: "CONFIRMED",
         config: { maxBidLines: "lots" },
       },
@@ -138,10 +156,19 @@ describe("POST /bids/compile", () => {
     expect(res.json().error).toBe("no_pbs_deployment");
   });
 
-  it("501 when the vendor has no compiler yet", async () => {
+  it("compiles through the deployment's own compiler", async () => {
     const res = await post({ ...intent, airline: "UAL" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json<CompileResponse>()).toMatchObject({
+      vendor: "JEPPESEN",
+      dialect: "ORDERED_GROUPS",
+    });
+  });
+
+  it("501 when the vendor has no compiler yet", async () => {
+    const res = await post({ ...intent, airline: "RPA" });
     expect(res.statusCode).toBe(501);
-    expect(res.json()).toMatchObject({ error: "not_implemented", vendor: "JEPPESEN" });
+    expect(res.json()).toMatchObject({ error: "not_implemented", vendor: "IBS_ADOPT" });
   });
 
   it("500 when the stored deployment config is malformed", async () => {
@@ -232,5 +259,15 @@ describe("POST /bid-periods/import", () => {
         .statusCode,
     ).toBe(404);
     expect((await importFile({ ...request, format: "pdf", data: csv })).statusCode).toBe(400);
+  });
+});
+
+describe("GET /airlines", () => {
+  it("says which deployments Holdline can compile", async () => {
+    const res = await app.inject({ method: "GET", url: "/airlines" });
+    const rows =
+      res.json<{ code: string; deployments: { vendor: string; compilable: boolean }[] }[]>();
+    expect(rows.find((a) => a.code === "UAL")!.deployments[0]).toMatchObject({ compilable: true });
+    expect(rows.find((a) => a.code === "RPA")!.deployments[0]).toMatchObject({ compilable: false });
   });
 });

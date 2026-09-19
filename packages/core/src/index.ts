@@ -1,4 +1,12 @@
-import type { BidIntent, CompiledBid, DeploymentConfig, PbsVendor } from "@holdline/types";
+import type {
+  BidDialect,
+  BidIntent,
+  CompiledBid,
+  DeploymentConfig,
+  PbsVendor,
+} from "@holdline/types";
+import { compileJeppesen } from "./compilers/jeppesen/compile.js";
+import { compileLayered } from "./compilers/layered/compile.js";
 import { compileNavblue } from "./compilers/navblue/compile.js";
 
 export { relaxationSteps, resolvePriorities, type Priorities, type RelaxStep } from "./relax.js";
@@ -10,15 +18,36 @@ export class UnsupportedVendorError extends Error {
   }
 }
 
-/** Entry point. Compilers live in ./compilers/<vendor>/ and get registered here. */
+/** Whether compile() has a compiler for this deployment. The web reads this through GET /airlines. */
+export function canCompile(vendor: PbsVendor, dialect?: BidDialect): boolean {
+  return (
+    vendor === "NAVBLUE" ||
+    vendor === "JEPPESEN" ||
+    vendor === "AOS" ||
+    (vendor === "UNKNOWN" && dialect === "LAYERED")
+  );
+}
+
+/**
+ * Entry point. Compilers live in ./compilers/<vendor>/ and get registered here. `dialect` picks the
+ * compiler when the vendor alone doesn't, e.g. American's unnamed 7-layer PBS.
+ */
 export function compile(
   intent: BidIntent,
   vendor: PbsVendor,
   config: DeploymentConfig = {},
+  dialect?: BidDialect,
 ): CompiledBid {
   switch (vendor) {
     case "NAVBLUE":
       return compileNavblue(intent, config);
+    case "JEPPESEN":
+      return compileJeppesen(intent, config);
+    case "AOS":
+      return compileLayered(intent, vendor, config);
+    case "UNKNOWN":
+      if (dialect === "LAYERED") return compileLayered(intent, vendor, config);
+      throw new UnsupportedVendorError(vendor);
     default:
       throw new UnsupportedVendorError(vendor);
   }

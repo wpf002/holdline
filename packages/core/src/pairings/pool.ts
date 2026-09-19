@@ -1,5 +1,6 @@
 import type {
   CompiledBid,
+  CompiledLine,
   LinePreview,
   Pairing,
   PairingMatch,
@@ -35,10 +36,18 @@ export function matchPairing(match: PairingMatch, p: Pairing): boolean | null {
       return p.days < match.days;
     case "lengthAbove":
       return p.days > match.days;
+    case "lengthIs":
+      return p.days === match.days;
+    case "lengthBetween":
+      return p.days >= match.min && p.days <= match.max;
     case "reportBefore":
       return p.report === undefined ? null : p.report < match.time;
     case "releaseAfter":
       return p.release === undefined ? null : p.release > match.time;
+    case "reportBetween":
+      return p.report === undefined ? null : p.report >= match.from && p.report <= match.to;
+    case "releaseBetween":
+      return p.release === undefined ? null : p.release >= match.from && p.release <= match.to;
     case "layoverIn":
       return p.layovers.some((s) => match.stations.includes(s));
     case "pairingOn":
@@ -60,10 +69,13 @@ export function matchPairing(match: PairingMatch, p: Pairing): boolean | null {
 
 /** Kinds that take matching pairings out of the pool for every line below them. */
 const REMOVES = new Set(["AVOID", "PREFER_OFF"]);
+const effectOf = (line: CompiledLine) =>
+  line.effect ?? (REMOVES.has(line.kind) ? "remove" : "prefer");
 
 /**
  * Walks each bid group top-down like NAVBLUE's Bid Analyzer: Avoid and Prefer Off lines shrink the
- * pool, Award lines count what they'd prefer. Groups are independent, so each starts from the full pool.
+ * pool, Award lines count what they'd prefer, and layered pairing properties keep only what they
+ * match. Groups and layers are counted independently, each from the full pool.
  */
 export function previewPool(bid: CompiledBid, pairings: Pairing[], importedAt: Date): PoolPreview {
   return {
@@ -77,7 +89,10 @@ export function previewPool(bid: CompiledBid, pairings: Pairing[], importedAt: D
           const results = pool.map((p) => matchPairing(line.match!, p));
           const matched = results.filter((r) => r === true).length;
           const unknown = results.filter((r) => r === null).length;
-          if (REMOVES.has(line.kind)) pool = pool.filter((_, i) => results[i] !== true);
+          const effect = effectOf(line);
+          // Pairings the file can't check stay in the pool either way.
+          if (effect === "remove") pool = pool.filter((_, i) => results[i] !== true);
+          if (effect === "keep") pool = pool.filter((_, i) => results[i] !== false);
           return { matched, poolAfter: pool.length, unknown };
         }),
       };

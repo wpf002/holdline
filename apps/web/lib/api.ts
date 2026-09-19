@@ -1,4 +1,5 @@
 import type {
+  BidDialect,
   BidIntent,
   CompileResponse,
   ImportRequest,
@@ -8,13 +9,21 @@ import type {
   PbsVendor,
 } from "@holdline/types";
 
-export const VENDOR_NAMES: Record<PbsVendor, string> = {
-  NAVBLUE: "NAVBLUE",
-  JEPPESEN: "Jeppesen",
-  IBS_ADOPT: "IBS / AD OPT",
-  AOS: "AOS",
-  UNKNOWN: "an unnamed PBS",
-};
+/** How to name a PBS in crew-facing text: "NAVBLUE", "Jeppesen", or "a layered PBS" for American's. */
+export function vendorName(vendor: PbsVendor, dialect?: BidDialect): string {
+  switch (vendor) {
+    case "NAVBLUE":
+      return "NAVBLUE";
+    case "JEPPESEN":
+      return "Jeppesen";
+    case "IBS_ADOPT":
+      return "IBS / AD OPT";
+    case "AOS":
+      return "AOS";
+    case "UNKNOWN":
+      return dialect === "LAYERED" ? "a layered PBS" : "an unnamed PBS";
+  }
+}
 
 /** One row of GET /airlines. */
 export interface AirlineOption {
@@ -23,7 +32,10 @@ export interface AirlineOption {
   deployments: {
     crewGroup: BidIntent["crewGroup"];
     vendor: PbsVendor;
+    dialect: BidDialect;
     confidence: "CONFIRMED" | "THIRD_PARTY" | "INFERRED";
+    /** Whether Holdline has a compiler for this PBS yet. */
+    compilable: boolean;
   }[];
 }
 

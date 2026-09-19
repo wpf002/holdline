@@ -19,6 +19,7 @@ import {
   monthName,
   shortDate,
 } from "../../format.js";
+import { daysOffInMonth } from "../../days-off.js";
 import { resolvePriorities } from "../../relax.js";
 import { navblueLabels, type NavblueLabels } from "./labels.js";
 
@@ -268,9 +269,7 @@ const clickInOrder = (items: string[]) =>
 
 function daysOff(c: Ctx): Part {
   const { L, intent } = c;
-  const { dates, ranges, daysOfWeek, weekends } = intent.daysOff;
-  const { first, last } = monthBounds(intent.month);
-  const period = monthName(intent.month);
+  const off = daysOffInMonth(intent, c.warn);
   const out: CompiledLine[] = [];
   const add = (text: string, steps: string[], match: PairingMatch) =>
     out.push(
@@ -282,47 +281,29 @@ function daysOff(c: Ctx): Part {
       ),
     );
 
-  const list = [...new Set(dates)];
-  const outside = list.filter((d) => d < first || d > last);
-  if (outside.length)
-    c.warn(
-      `Skipped days off outside the ${period} bid period: ${outside.map(shortDate).join(", ")}.`,
+  if (off.dates.length) {
+    add(
+      off.dates.map(shortDate).join(", "),
+      [L("ui.datesList"), clickInOrder(off.dates.map(monthDay))],
+      { type: "worksOn", dates: off.dates },
     );
-  const kept = list.filter((d) => d >= first && d <= last);
-  if (kept.length) {
-    add(kept.map(shortDate).join(", "), [L("ui.datesList"), clickInOrder(kept.map(monthDay))], {
-      type: "worksOn",
-      dates: kept,
-    });
   }
-
-  for (const r of ranges) {
-    const start = r.start < first ? first : r.start;
-    const end = r.end > last ? last : r.end;
-    const asked = `${shortDate(r.start)} - ${shortDate(r.end)}`;
-    if (start > end) {
-      c.warn(`Skipped days off ${asked}: outside the ${period} bid period.`);
-      continue;
-    }
-    if (start !== r.start || end !== r.end)
-      c.warn(`Trimmed days off ${asked} to the ${period} bid period.`);
+  for (const { start, end } of off.ranges) {
     add(
       `${shortDate(start)} - ${shortDate(end)}`,
       [L("ui.datesRange"), `${monthDay(start)} to ${monthDay(end)}`],
       { type: "worksOn", dates: datesBetween(start, end) },
     );
   }
-
-  const weekdays = [...new Set(daysOfWeek)];
-  const days = weekdays.map((d) => WEEKDAY_NAMES[d]);
+  const days = off.daysOfWeek.map((d) => WEEKDAY_NAMES[d]);
   if (days.length) {
     add(days.join(", "), [L("ui.daysOfWeekList"), clickInOrder(days)], {
       type: "worksOnWeekday",
-      days: weekdays,
+      days: off.daysOfWeek,
     });
   }
   // A blank Minimum asks for as many weekends off as possible (AC_GUIDE p.5-14).
-  if (weekends) {
+  if (off.weekends) {
     add(L("preferOff.weekends"), [L("preferOff.weekends"), "Leave Minimum blank"], {
       type: "worksWeekend",
     });

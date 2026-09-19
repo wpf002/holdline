@@ -3,7 +3,8 @@
 import type { CompileResponse, CompiledBid, CompiledLine, LinePreview } from "@holdline/types";
 import Link from "next/link";
 import { useState } from "react";
-import { VENDOR_NAMES } from "../lib/api";
+import { PREFERENCE_NAMES } from "@holdline/types";
+import { vendorName } from "../lib/api";
 
 const KIND_LABELS: Record<CompiledLine["kind"], string> = {
   SYSTEM: "Bid group",
@@ -95,8 +96,11 @@ export function CompiledBidView({
         <div className="notice notice-warning">
           <p className="notice-title">Check each line against your bid screen</p>
           <p>
-            Holdline hasn&apos;t compared this wording with {VENDOR_NAMES[bid.vendor]}&apos;s screen
-            for your airline yet. Menu names and labels can differ.
+            Holdline hasn&apos;t compared this wording with{" "}
+            {bid.vendor === "UNKNOWN"
+              ? "your airline's bid screen"
+              : `${vendorName(bid.vendor)}'s screen for your airline`}{" "}
+            yet. Menu names and labels can differ.
           </p>
           {bid.warnings.length > 0 && (
             <ul>
@@ -146,6 +150,18 @@ export function CompiledBidView({
       {bid.groups.map((group, gi) => (
         <section key={group.label} className="bid-group" aria-label={group.label}>
           <h3>{group.label}</h3>
+          {group.relaxed.length > 0 && (
+            <p className="hint">
+              Drops{" "}
+              {group.relaxed
+                .map((k) => PREFERENCE_NAMES[k as keyof typeof PREFERENCE_NAMES] ?? k)
+                .join(", ")}
+              .
+            </p>
+          )}
+          {group.lines.every((l) => l.kind === "SYSTEM") && (
+            <p className="hint">Nothing left to limit here: PBS can use any pairing.</p>
+          )}
           <ol className="bid-lines">
             {group.lines.map((line, li) => {
               const counts = bid.preview?.groups[gi]?.lines;
