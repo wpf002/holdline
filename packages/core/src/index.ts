@@ -1,4 +1,7 @@
-import type { BidIntent, CompiledBid, PbsVendor } from "@holdline/types";
+import type { BidIntent, CompiledBid, DeploymentConfig, PbsVendor } from "@holdline/types";
+import { compileNavblue } from "./compilers/navblue/compile.js";
+
+export { relaxationSteps, resolvePriorities, type Priorities, type RelaxStep } from "./relax.js";
 
 export class UnsupportedVendorError extends Error {
   constructor(public vendor: PbsVendor) {
@@ -6,8 +9,16 @@ export class UnsupportedVendorError extends Error {
   }
 }
 
-/** Entry point. Compilers live in ./compilers/<vendor>.ts and get registered here. */
-export function compile(_intent: BidIntent, vendor: PbsVendor): CompiledBid {
-  // TODO(phase 1): NAVBLUE compiler. See docs/pbs-research.md and CLAUDE.md.
-  throw new UnsupportedVendorError(vendor);
+/** Entry point. Compilers live in ./compilers/<vendor>/ and get registered here. */
+export function compile(
+  intent: BidIntent,
+  vendor: PbsVendor,
+  config: DeploymentConfig = {},
+): CompiledBid {
+  switch (vendor) {
+    case "NAVBLUE":
+      return compileNavblue(intent, config);
+    default:
+      throw new UnsupportedVendorError(vendor);
+  }
 }

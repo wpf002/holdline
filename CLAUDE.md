@@ -42,6 +42,7 @@ plain English ──(phase 2, Anthropic tool use)──> BidIntent (packages/typ
 
 - `packages/core` is pure: no DB, no network. Everything else calls it.
 - Relaxation logic is shared (`core/src/relax.ts`): group N = all preferences minus the last N-1 entries of `intent.priorities`. Final group always = hard constraints only + award all. Cap by `PbsDeployment.config.maxGroups`.
+  - NAVBLUE exception: PBS only leaves a bid group through `Else Start Next Bid Group` / `Clear Schedule and Start Next Bid Group`; otherwise Denial Mode relaxes inside the group, deleting negative lines bottom-up (Air Canada guide p.4-4, 4-11). So the NAVBLUE compiler emits one group with negatives in priority order and uses only `resolvePriorities`. `relaxationSteps` is for Jeppesen/LAYERED.
 - Each vendor compiler maps canonical fields to vendor wording via a label table (`core/src/compilers/<vendor>/labels.ts`). Unsupported fields become warnings, never silent drops.
 - Airline-specific overrides (labels, limits, waiver names) live in `PbsDeployment.config` JSON so fixing a label doesn't need a deploy.
 

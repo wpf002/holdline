@@ -2,7 +2,7 @@
 
 Holdline turns a crew member's plain-English schedule wishes into a correct, ordered PBS bid for their airline's bidding system. It's the QuickBid experience (say what you want, get it sorted) rebuilt for Preferential Bidding Systems, where there are no lines to rank and the bid has to be written in the vendor's rule language.
 
-**Status:** scaffold. Airline/vendor map and `/airlines` endpoint are live; compilers, parsing and pairing import are stubbed (501).
+**Status:** build step 1. `/airlines` and `POST /bids/compile` (NAVBLUE only, `syntaxVerified: false`) are live; other vendors, parsing and pairing import return 501.
 
 ## Stack
 

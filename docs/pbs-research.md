@@ -51,6 +51,8 @@ Prefer Off Dec 14, 2011 - Dec 17, 2011
 
 **Processing.** Seniority order, per base. Lines top-down; negatives shrink the pool for lines below. If the block isn't complete: shuffling, then Denial Mode (drops Set Condition / Prefer Off / Avoid lines bottom-up; multi-date lines lose dates right-to-left), then coverage awards, then Secondary Line Generation. `Minimum Credit Window` stops PBS adding a pairing just to reach the window.
 
+PBS moves to the next bid group only through `Else Start Next Bid Group` (on Prefer Off / Avoid / some Set Conditions) or `Clear Schedule and Start Next Bid Group`, and both discard pairings awarded so far (Air Canada guide p.4-11; KB 35000203471, 35000204819). Without them, Denial Mode runs inside the current group. `Minimum` / `Maximum Credit Window` are flags with no hours: the bidder picks one of the airline's published windows (Envoy AFA p.31, 34; Air Canada guide p.5-55). Envoy FA windows: minimum 65–91, normal 75–91, maximum 91–110 h (Envoy AFA p.7). Envoy's 2025 screen labels the group header `Pairing Bid Group` and lists waivers `Minimum 2 Days Off In A Row`, `No Same Day Pairings`, `1 Day Off in 7` (Envoy AFA p.29, 34).
+
 **UI.** Left nav INFO / CALENDAR / PAIRINGS / BIDS / RESULTS. Bid Preference Editor: type-ahead multi-select, time/number spinners, calendar picker, Apply disabled until required fields filled. Bid Analyzer tabs: Matching Bid Line, Removed From Pool, Filtered Pool, Added To Potential Awards, Total Potential Awards. Results: Awards + Reasons Report.
 
 ## Jeppesen (United pilots)

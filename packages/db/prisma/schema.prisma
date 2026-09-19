@@ -53,7 +53,7 @@ model PbsDeployment {
   confidence SourceConfidence
   sourceUrl  String?
   notes      String?
-  /// { maxBidLines?, maxGroups?, layers?, labels?: Record<string,string> }
+  /// DeploymentConfig in @holdline/types: { maxBidLines?, maxGroups?, layers?, labels?, creditWindows? }
   config     Json             @default("{}")
   bidPeriods BidPeriod[]
   bids       Bid[]
