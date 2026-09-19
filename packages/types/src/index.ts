@@ -3,3 +3,4 @@ export * from "./compiled.js";
 export * from "./deployment.js";
 export * from "./parse.js";
 export * from "./pairing.js";
+export * from "./award.js";

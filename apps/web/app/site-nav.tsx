@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 const LINKS = [
   { href: "/", label: "Build a bid" },
-  { href: "/pairings", label: "Import pairings" },
+  { href: "/pairings", label: "Import data" },
 ];
 
 export function SiteNav() {

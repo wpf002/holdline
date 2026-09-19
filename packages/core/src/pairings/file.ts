@@ -23,8 +23,8 @@ const CSV_COLUMNS = [
 ];
 const REQUIRED = ["pairing", "start_date", "days", "credit"];
 
-/** "16:42" or "016:42" -> 1002 minutes; undefined when blank. */
-function duration(value: string | undefined): number | undefined {
+/** "16:42" or "016:42" -> 1002 minutes; undefined when blank, NaN when malformed. */
+export function duration(value: string | undefined): number | undefined {
   const v = value?.trim();
   if (!v) return undefined;
   const m = /^(\d{1,3}):([0-5]\d)$/.exec(v);
@@ -40,7 +40,7 @@ function layoversFromLegs(p: Pairing): string[] {
   return duties.slice(0, -1).map((d) => lastLegOfDuty.get(d)!);
 }
 
-function describeIssues(issues: { path: PropertyKey[]; message: string }[]): string {
+export function describeIssues(issues: { path: PropertyKey[]; message: string }[]): string {
   return issues
     .map((i) => (i.path.length ? `${i.path.join(".")}: ${i.message}` : i.message))
     .join("; ");

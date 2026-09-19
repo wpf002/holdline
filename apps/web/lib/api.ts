@@ -1,4 +1,5 @@
 import type {
+  AwardImportRequest,
   BidDialect,
   BidIntent,
   CompileResponse,
@@ -61,6 +62,11 @@ function describeError(status: number, body: ErrorBody | null): string {
       return "Holdline has no PBS on file for that airline and crew group.";
     case "not_implemented":
       return `Holdline can't write ${body.vendor ?? "this vendor's"} bids yet.`;
+    case "no_awards":
+      return `No awards could be read from that file. ${(body.errors ?? [])
+        .slice(0, 3)
+        .map((e) => (e.line ? `Line ${e.line}: ${e.message}` : e.message))
+        .join(" ")}`;
     case "no_pairings":
       return `No pairings could be read from that file. ${(body.errors ?? [])
         .slice(0, 3)
@@ -93,11 +99,14 @@ async function post<T>(apiUrl: string, path: string, body: unknown): Promise<Api
   return { ok: false, message: describeError(res.status, json as ErrorBody | null) };
 }
 
-export const compileBid = (apiUrl: string, intent: BidIntent) =>
-  post<CompileResponse>(apiUrl, "/bids/compile", intent);
+export const compileBid = (apiUrl: string, intent: BidIntent, seniority?: number) =>
+  post<CompileResponse>(apiUrl, "/bids/compile", { ...intent, seniority });
 
 export const importPairings = (apiUrl: string, request: ImportRequest) =>
   post<ImportResponse>(apiUrl, "/bid-periods/import", request);
 
 export const parseDescription = (apiUrl: string, request: ParseRequest) =>
   post<ParseResponse>(apiUrl, "/bids/parse", request);
+
+export const importAwards = (apiUrl: string, request: AwardImportRequest) =>
+  post<ImportResponse>(apiUrl, "/awards/import", request);

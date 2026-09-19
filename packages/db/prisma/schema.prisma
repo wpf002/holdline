@@ -119,7 +119,8 @@ model Bid {
   updatedAt    DateTime      @updatedAt
 }
 
-/// Past awards, used later to estimate what a seniority number can hold.
+/// Past awards, used to estimate what a seniority number can hold. One row per awarded pairing, or
+/// one row per line when the report only has line totals. Never holds names or employee numbers.
 model AwardRecord {
   id            String        @id @default(cuid())
   deployment    PbsDeployment @relation(fields: [deploymentId], references: [id])
@@ -128,7 +129,9 @@ model AwardRecord {
   month         String
   seniority     Int
   pairingNumber String?
+  pairingDate   DateTime?     @db.Date
   lineCredit    Int?
+  reserve       Boolean       @default(false)
   raw           Json?
 
   @@index([deploymentId, base, month])

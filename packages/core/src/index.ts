@@ -10,6 +10,7 @@ import { compileLayered } from "./compilers/layered/compile.js";
 import { compileNavblue } from "./compilers/navblue/compile.js";
 
 export { relaxationSteps, resolvePriorities, type Priorities, type RelaxStep } from "./relax.js";
+export * from "./awards/index.js";
 export * from "./pairings/index.js";
 
 export class UnsupportedVendorError extends Error {

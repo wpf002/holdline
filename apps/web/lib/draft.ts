@@ -54,10 +54,10 @@ export function emptyDraft(context: BidContext): BidIntent {
   };
 }
 
-/** This month and the next two as "YYYY-MM", from the server's clock. */
-export function bidMonths(today: Date, count = 3): string[] {
+/** "YYYY-MM" months from `from` months away to `from + count - 1`, on the server's clock. */
+export function bidMonths(today: Date, count = 3, from = 0): string[] {
   return Array.from({ length: count }, (_, i) => {
-    const d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + i, 1));
+    const d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + from + i, 1));
     return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
   });
 }

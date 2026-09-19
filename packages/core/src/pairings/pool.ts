@@ -69,7 +69,7 @@ export function matchPairing(match: PairingMatch, p: Pairing): boolean | null {
 
 /** Kinds that take matching pairings out of the pool for every line below them. */
 const REMOVES = new Set(["AVOID", "PREFER_OFF"]);
-const effectOf = (line: CompiledLine) =>
+export const effectOf = (line: CompiledLine) =>
   line.effect ?? (REMOVES.has(line.kind) ? "remove" : "prefer");
 
 /**

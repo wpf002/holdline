@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Import pairings · Holdline" };
 
 export default async function PairingsPage() {
+  const today = new Date();
   const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
   let airlines: AirlineOption[] | null = null;
   try {
@@ -27,7 +28,13 @@ export default async function PairingsPage() {
         </p>
       </div>
       {airlines ? (
-        <ImportForm airlines={airlines} apiUrl={apiUrl} months={bidMonths(new Date())} />
+        <ImportForm
+          airlines={airlines}
+          apiUrl={apiUrl}
+          months={bidMonths(today, 9, -6)}
+          defaultMonth={bidMonths(today, 1, 1)[0]!}
+          lastMonth={bidMonths(today, 1, -1)[0]!}
+        />
       ) : (
         <div className="notice notice-danger" role="alert">
           <p className="notice-title">Can&apos;t reach the Holdline API</p>

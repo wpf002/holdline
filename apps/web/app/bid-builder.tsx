@@ -41,13 +41,21 @@ export function BidBuilder({
   apiUrl: string;
   months: string[];
 }) {
-  const ids = { airline: useId(), base: useId(), month: useId(), describe: useId() };
+  const ids = {
+    airline: useId(),
+    base: useId(),
+    month: useId(),
+    seniority: useId(),
+    describe: useId(),
+  };
   const [draft, setDraft] = useState<BidIntent>(() =>
     emptyDraft({ airline: "", crewGroup: "PILOT", month: months[1] ?? months[0]!, base: "" }),
   );
   // Bumped when the parser replaces the draft, so fields that keep their own text remount.
   const [formVersion, setFormVersion] = useState(0);
   const [description, setDescription] = useState("");
+  // Seniority only feeds hold estimates; it isn't part of the bid.
+  const [seniority, setSeniority] = useState("");
   const [questions, setQuestions] = useState<string[]>([]);
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
@@ -61,7 +69,10 @@ export function BidBuilder({
   const supported = deployment?.compilable ?? false;
   const priorities = orderedPriorities(draft);
   const request: BidIntent = { ...draft, base: draft.base.toUpperCase(), priorities };
-  const stale = result !== null && result.builtFrom !== JSON.stringify(request);
+  const seniorityNumber =
+    /^\d+$/.test(seniority) && Number(seniority) > 0 ? Number(seniority) : undefined;
+  const builtKey = JSON.stringify({ request, seniority: seniorityNumber });
+  const stale = result !== null && result.builtFrom !== builtKey;
   const contextProblem = !draft.airline
     ? "Choose your airline."
     : !/^[A-Za-z]{3}$/.test(draft.base)
@@ -118,10 +129,10 @@ export function BidBuilder({
     if (problem) return setBuildError(problem);
     setBuilding(true);
     setBuildError(null);
-    const res = await compileBid(apiUrl, request);
+    const res = await compileBid(apiUrl, request, seniorityNumber);
     setBuilding(false);
     if (!res.ok) return setBuildError(res.message);
-    setResult({ bid: res.data, builtFrom: JSON.stringify(request) });
+    setResult({ bid: res.data, builtFrom: builtKey });
     // On wide screens the bid sits beside the form; on narrow ones, scroll down to it.
     if (!window.matchMedia("(min-width: 1100px)").matches) {
       const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -202,6 +213,21 @@ export function BidBuilder({
                 ))}
               </select>
             </div>
+            <div className="field">
+              <label className="label" htmlFor={ids.seniority}>
+                Seniority
+              </label>
+              <input
+                id={ids.seniority}
+                className="input input-narrow mono"
+                value={seniority}
+                inputMode="numeric"
+                placeholder="Optional"
+                autoComplete="off"
+                aria-describedby={`${ids.seniority}-hint`}
+                onChange={(e) => setSeniority(e.target.value.replace(/\D/g, ""))}
+              />
+            </div>
             <Segmented
               label="Bidding for"
               value={draft.lineType}
@@ -212,6 +238,10 @@ export function BidBuilder({
               onChange={(lineType) => update({ lineType })}
             />
           </div>
+          <p className="hint" id={`${ids.seniority}-hint`}>
+            Your seniority number in this base and seat, for hold estimates from past award results.
+            Holdline uses it for the estimate and doesn&apos;t save it.
+          </p>
           {airline && deployment && (
             <p className="hint">
               {airline.name} {CREW_PLURAL[draft.crewGroup]} bid in{" "}

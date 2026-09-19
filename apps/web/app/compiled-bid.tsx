@@ -1,6 +1,13 @@
 "use client";
 
-import type { CompileResponse, CompiledBid, CompiledLine, LinePreview } from "@holdline/types";
+import type {
+  CompileResponse,
+  CompiledBid,
+  CompiledLine,
+  HoldEstimates,
+  LineHold,
+  LinePreview,
+} from "@holdline/types";
 import Link from "next/link";
 import { useState } from "react";
 import { PREFERENCE_NAMES } from "@holdline/types";
@@ -49,6 +56,53 @@ function poolNote(line: CompiledLine, count: LinePreview): string {
   if (line.kind === "AWARD")
     return `${plural(count.matched, "pairing")} in the pool match.${unknown}`;
   return `Removes ${plural(count.matched, "pairing")}, ${count.poolAfter} left.${unknown}`;
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const monthShort = (month: string) =>
+  `${MONTHS[Number(month.slice(5, 7)) - 1]} ${month.slice(0, 4)}`;
+
+/** "Sep 2026: held down to #80 (2 awarded), within your seniority." */
+function holdNote(hold: LineHold, seniority: number | null): string {
+  if (hold.juniorMost === null) return `${monthShort(hold.month)}: none awarded.`;
+  const reach =
+    seniority === null
+      ? ""
+      : seniority <= hold.juniorMost
+        ? ", within your seniority"
+        : ", more senior than you";
+  return `${monthShort(hold.month)}: held down to #${hold.juniorMost} (${hold.awarded} awarded)${reach}.`;
+}
+
+/** What past award results say about holding a line at this seniority. */
+function HoldSummary({ holds }: { holds: HoldEstimates }) {
+  const latest = holds.months[0];
+  let verdict: string | null = null;
+  if (latest && holds.seniority !== null) {
+    const s = holds.seniority;
+    if (latest.lastLineholder !== null && s <= latest.lastLineholder) {
+      verdict = `At #${s} you'd have held a line in ${monthShort(latest.month)}.`;
+    } else if (latest.firstReserve !== null && s >= latest.firstReserve) {
+      verdict = `At #${s} you'd have been on reserve in ${monthShort(latest.month)}.`;
+    } else {
+      verdict = `At #${s} you'd have been right at the line/reserve cutoff in ${monthShort(latest.month)}.`;
+    }
+  }
+  return (
+    <div className="notice">
+      <p className="notice-title">Past awards</p>
+      {verdict && <p className="hold-verdict">{verdict}</p>}
+      <ul>
+        {holds.months.map((m) => (
+          <li key={m.month}>
+            {monthShort(m.month)}: lines went down to{" "}
+            {m.lastLineholder === null ? "no one on file" : `#${m.lastLineholder}`}
+            {m.firstReserve !== null && `; reserve started at #${m.firstReserve}`}.
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 export function CompiledBidView({
@@ -121,6 +175,8 @@ export function CompiledBidView({
           </div>
         )
       )}
+
+      {bid.holds && bid.holds.months.length > 0 && <HoldSummary holds={bid.holds} />}
 
       {bid.preview ? (
         <p className="hint">
@@ -206,6 +262,11 @@ export function CompiledBidView({
                       ))}
                     </ol>
                     {counts?.[li] && <p className="pool-note">{poolNote(line, counts[li]!)}</p>}
+                    {bid.holds?.groups[gi]?.lines[li]?.map((hold) => (
+                      <p key={hold.month} className="hold-note">
+                        {holdNote(hold, bid.holds!.seniority)}
+                      </p>
+                    ))}
                   </div>
                   {line.kind !== "SYSTEM" && (
                     <button

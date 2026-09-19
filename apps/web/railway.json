@@ -4,5 +4,8 @@
     "builder": "RAILPACK",
     "buildCommand": "pnpm install --frozen-lockfile && pnpm turbo run build --filter=@holdline/web..."
   },
-  "deploy": { "startCommand": "pnpm --filter @holdline/web start", "restartPolicyType": "ON_FAILURE" }
+  "deploy": {
+    "startCommand": "pnpm --filter @holdline/web start",
+    "restartPolicyType": "ON_FAILURE"
+  }
 }

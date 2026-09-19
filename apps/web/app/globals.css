@@ -1065,6 +1065,27 @@ a:hover {
   flex: none;
 }
 
+.hold-note {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.hold-note::before {
+  content: "#";
+  font-family: var(--font-mono);
+  font-weight: 500;
+  color: var(--text);
+}
+
+.hold-verdict {
+  font-size: var(--t-md);
+  font-weight: 500;
+}
+
 .bid-line-system {
   grid-template-columns: 40px minmax(0, 1fr);
   border-style: dashed;

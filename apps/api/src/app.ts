@@ -3,15 +3,21 @@ import {
   UnsupportedVendorError,
   canCompile,
   compile,
+  estimateHolds,
+  parseAwardFile,
   parsePairingFile,
   previewPool,
+  type HistoryMonth,
 } from "@holdline/core";
 import {
+  AwardImportRequest,
   BidIntent,
   BidIntentDraft,
+  CompileExtras,
   DeploymentConfig,
   ImportRequest,
   ParseRequest,
+  type Award,
   type CompileResponse,
   type ImportResponse,
   type Pairing,
@@ -57,6 +63,15 @@ export interface Store {
     month: string,
     pairings: Pairing[],
   ): Promise<void>;
+  /** Replaces the award results for one deployment, base and month. */
+  saveAwards(deploymentId: string, base: string, month: string, awards: Award[]): Promise<void>;
+  /** Up to `limit` months before `month` that have award results, with their pairings. */
+  loadHistory(
+    deploymentId: string,
+    base: string,
+    month: string,
+    limit: number,
+  ): Promise<HistoryMonth[]>;
 }
 
 export interface Deps {
@@ -70,8 +85,10 @@ const CREW_NAMES: Record<CrewGroup, string> = {
   FLIGHT_ATTENDANT: "flight attendants",
 };
 
-/** A month of pairings for one base is a few MB at most. */
+/** A month of pairings or awards for one base is a few MB at most. */
 const IMPORT_BODY_LIMIT = 10 * 1024 * 1024;
+/** Past months of award results used for hold estimates. */
+const HISTORY_MONTHS = 3;
 
 export async function buildApp(
   { store, parser }: Deps,
@@ -114,8 +131,10 @@ export async function buildApp(
 
   app.post("/bids/compile", async (req, reply) => {
     const parsed = BidIntent.safeParse(req.body);
-    if (!parsed.success) {
-      return reply.code(400).send({ error: "invalid_intent", issues: parsed.error.issues });
+    const extras = CompileExtras.safeParse(req.body);
+    if (!parsed.success || !extras.success) {
+      const issues = [...(parsed.error?.issues ?? []), ...(extras.error?.issues ?? [])];
+      return reply.code(400).send({ error: "invalid_intent", issues });
     }
     const intent = {
       ...parsed.data,
@@ -161,7 +180,14 @@ export async function buildApp(
         ? await store.loadPairings(deployment.id, intent.base, intent.month)
         : null;
     const preview = period ? previewPool(bid, period.pairings, period.importedAt) : null;
-    return { ...bid, preview } satisfies CompileResponse;
+    const history = await store.loadHistory(
+      deployment.id,
+      intent.base,
+      intent.month,
+      HISTORY_MONTHS,
+    );
+    const holds = history.length ? estimateHolds(bid, history, extras.data.seniority) : null;
+    return { ...bid, preview, holds } satisfies CompileResponse;
   });
 
   // Plain English -> draft intent. The form stays the source of truth; this only pre-fills it.
@@ -210,6 +236,27 @@ export async function buildApp(
     if (pairings.length === 0) return reply.code(422).send({ error: "no_pairings", errors });
     await store.savePairings(found.deployment.id, request.base, request.month, pairings);
     return { imported: pairings.length, errors } satisfies ImportResponse;
+  });
+
+  // One past bid period's award results (docs/award-import.md), for hold estimates. Only seniority and
+  // what was awarded are kept. Replaces any earlier import for the same bid period.
+  app.post("/awards/import", { bodyLimit: IMPORT_BODY_LIMIT }, async (req, reply) => {
+    const body = AwardImportRequest.safeParse(req.body);
+    if (!body.success) {
+      return reply.code(400).send({ error: "invalid_request", issues: body.error.issues });
+    }
+    const request = {
+      ...body.data,
+      airline: body.data.airline.toUpperCase(),
+      base: body.data.base.toUpperCase(),
+    };
+    const found = await findDeployment(request.airline, request.crewGroup, reply);
+    if (!found) return reply;
+
+    const { awards, errors } = parseAwardFile(request.format, request.data);
+    if (awards.length === 0) return reply.code(422).send({ error: "no_awards", errors });
+    await store.saveAwards(found.deployment.id, request.base, request.month, awards);
+    return { imported: awards.length, errors } satisfies ImportResponse;
   });
 
   return app;

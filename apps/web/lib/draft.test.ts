@@ -38,6 +38,14 @@ describe("bidMonths", () => {
   it("returns this month and the next two across a year end", () => {
     expect(bidMonths(new Date(Date.UTC(2026, 10, 19)))).toEqual(["2026-11", "2026-12", "2027-01"]);
   });
+
+  it("can start in the past", () => {
+    expect(bidMonths(new Date(Date.UTC(2026, 0, 5)), 3, -2)).toEqual([
+      "2025-11",
+      "2025-12",
+      "2026-01",
+    ]);
+  });
 });
 
 describe("toggle", () => {

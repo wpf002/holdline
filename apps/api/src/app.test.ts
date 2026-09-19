@@ -1,5 +1,6 @@
 import {
   BidPreferences,
+  type Award,
   type CompileResponse,
   type CompiledBid,
   type Pairing,
@@ -76,8 +77,9 @@ const airlines: AirlineRecord[] = [
   },
 ];
 
-/** In-memory pairing periods keyed by deployment, base and month. */
+/** In-memory pairing periods and award results keyed by deployment, base and month. */
 const periods = new Map<string, { importedAt: Date; pairings: Pairing[] }>();
+const awardsByPeriod = new Map<string, Award[]>();
 const store: Store = {
   listAirlines: async () => airlines,
   findAirline: async (code) => airlines.find((a) => a.code === code) ?? null,
@@ -88,6 +90,20 @@ const store: Store = {
       pairings,
     });
   },
+  saveAwards: async (id, base, month, awards) => {
+    awardsByPeriod.set(`${id}|${base}|${month}`, awards);
+  },
+  loadHistory: async (id, base, month, limit) =>
+    [...awardsByPeriod.entries()]
+      .map(([key, awards]) => ({ key: key.split("|"), awards }))
+      .filter(({ key }) => key[0] === id && key[1] === base && key[2]! < month)
+      .sort((a, b) => b.key[2]!.localeCompare(a.key[2]!))
+      .slice(0, limit)
+      .map(({ key, awards }) => ({
+        month: key[2]!,
+        pairings: periods.get(key.join("|"))?.pairings ?? [],
+        awards,
+      })),
 };
 
 /** Stands in for the Anthropic-backed parser; parse.test.ts covers the real one. */
@@ -269,5 +285,62 @@ describe("GET /airlines", () => {
       res.json<{ code: string; deployments: { vendor: string; compilable: boolean }[] }[]>();
     expect(rows.find((a) => a.code === "UAL")!.deployments[0]).toMatchObject({ compilable: true });
     expect(rows.find((a) => a.code === "RPA")!.deployments[0]).toMatchObject({ compilable: false });
+  });
+});
+
+describe("POST /awards/import and hold estimates", () => {
+  const period = { airline: "ENY", crewGroup: "PILOT", base: "DFW", month: "2026-09" };
+  const importAwards = (payload: object) =>
+    app.inject({ method: "POST", url: "/awards/import", payload });
+
+  it("stores seniority and awards only, then /bids/compile estimates holds", async () => {
+    await app.inject({
+      method: "POST",
+      url: "/bid-periods/import",
+      payload: {
+        ...period,
+        format: "holdline-csv",
+        data: "pairing,start_date,days,credit,layovers\nS1,2026-09-03,3,15:00,AUS\nS2,2026-09-12,3,15:00,ORD\n",
+      },
+    });
+    const res = await importAwards({
+      ...period,
+      format: "holdline-awards-csv",
+      data: [
+        "name,employee,seniority,pairing,start_date,reserve",
+        "Pat Doe,012345,40,S1,2026-09-03,N",
+        "Sam Roe,023456,20,S2,2026-09-12,N",
+        "Lee Poe,034567,95,,,Y",
+      ].join("\n"),
+    });
+    expect(res.json()).toEqual({ imported: 3, errors: [] });
+    expect(JSON.stringify(awardsByPeriod.get("eny-pilot|DFW|2026-09"))).not.toMatch(/Pat|012345/);
+
+    const bid = await post({
+      ...intent,
+      pairings: { preferLayovers: ["AUS"] },
+      priorities: ["daysOff", "layovers"],
+      seniority: 60,
+    });
+    const body = bid.json<CompileResponse>();
+    expect(body.holds).toMatchObject({
+      seniority: 60,
+      months: [{ month: "2026-09", lastLineholder: 40, firstReserve: 95 }],
+    });
+    const awardLine = body.groups[0]!.lines.findIndex((l) => l.text.includes("Layover In AUS"));
+    expect(body.holds!.groups[0]!.lines[awardLine]).toEqual([
+      { month: "2026-09", juniorMost: 40, awarded: 1 },
+    ]);
+  });
+
+  it("rejects a bad seniority and a file with nothing usable", async () => {
+    expect((await post({ ...intent, seniority: 0 })).statusCode).toBe(400);
+    const empty = await importAwards({
+      ...period,
+      format: "holdline-awards-csv",
+      data: "seniority\n12\n",
+    });
+    expect(empty.statusCode).toBe(422);
+    expect(empty.json().error).toBe("no_awards");
   });
 });
