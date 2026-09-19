@@ -1,6 +1,5 @@
-import Link from "next/link";
-import { bidMonths } from "../lib/draft";
 import type { AirlineOption } from "../lib/api";
+import { bidMonths } from "../lib/draft";
 import { BidBuilder } from "./bid-builder";
 
 export const dynamic = "force-dynamic";
@@ -17,16 +16,14 @@ export default async function Home() {
 
   return (
     <main className="page">
-      <header className="masthead">
-        <h1>Holdline</h1>
+      <div className="hero">
+        <p className="eyebrow">PBS bid builder</p>
+        <h1>Build next month&apos;s PBS bid</h1>
         <p className="lede">
-          Say what you want from next month&apos;s schedule. Holdline writes your PBS bid in the
-          order PBS reads it, with the clicks to enter each line.
+          Holdline turns your days off, trips and layovers into your airline&apos;s bid language, in
+          the order PBS gives things up, with the clicks to enter each line.
         </p>
-        <p className="hint">
-          <Link href="/pairings">Import pairings</Link> to see how many pairings each line removes.
-        </p>
-      </header>
+      </div>
       {airlines ? (
         <BidBuilder airlines={airlines} apiUrl={apiUrl} months={bidMonths(new Date())} />
       ) : (

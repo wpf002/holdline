@@ -77,7 +77,8 @@ export function DaysOffPicker({
           .map((iso, i) => {
             if (!iso) return <span key={`pad-${i}`} />;
             const rank = daysOff.dates.indexOf(iso) + 1;
-            const weekday = WEEK[new Date(`${iso}T00:00:00Z`).getUTCDay()]!.long;
+            const dow = new Date(`${iso}T00:00:00Z`).getUTCDay();
+            const weekday = WEEK[dow]!.long;
             const state = blockStart === iso ? "pending" : inBlock(iso) ? "range" : undefined;
             const extra = rank
               ? `, off, priority ${rank}`
@@ -92,6 +93,7 @@ export function DaysOffPicker({
                 aria-pressed={rank > 0}
                 aria-label={`${weekday} ${shortDay(iso)}${extra}`}
                 data-state={state}
+                data-weekend={dow === 0 || dow === 6 || undefined}
                 onClick={() => pick(iso)}
               >
                 {Number(iso.slice(8))}

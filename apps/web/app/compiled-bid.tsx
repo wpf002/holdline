@@ -138,13 +138,18 @@ export function CompiledBidView({
         )
       )}
 
-      <div className="actions">
-        <p className="progress" aria-live="polite">
-          {done.size} of {total} lines entered
-        </p>
-        <button type="button" className="button" onClick={() => copy("all", asText(bid))}>
-          {copied === "all" ? "Copied" : "Copy whole bid"}
-        </button>
+      <div className="group">
+        <div className="bid-group-head">
+          <p className="progress" aria-live="polite">
+            {done.size}/{total} lines entered
+          </p>
+          <button type="button" className="button" onClick={() => copy("all", asText(bid))}>
+            {copied === "all" ? "Copied" : "Copy whole bid"}
+          </button>
+        </div>
+        <div className="progress-bar" aria-hidden="true">
+          <span style={{ width: `${total ? (done.size / total) * 100 : 0}%` }} />
+        </div>
       </div>
 
       {bid.groups.map((group, gi) => (
@@ -171,7 +176,6 @@ export function CompiledBidView({
                 return (
                   <li key={id} className="bid-line bid-line-system" data-kind={line.kind}>
                     <span />
-                    <span />
                     <div className="bid-body">
                       <p className="bid-text">{line.text}</p>
                       <p className="hint">Added automatically.</p>
@@ -182,15 +186,17 @@ export function CompiledBidView({
               }
               return (
                 <li key={id} className="bid-line" data-kind={line.kind} data-done={done.has(id)}>
-                  <label className="check">
-                    <input
-                      type="checkbox"
-                      checked={done.has(id)}
-                      onChange={() => toggleDone(id)}
-                      aria-label={`Line ${n} entered`}
-                    />
-                  </label>
-                  <span className="bid-num">{n}</span>
+                  <div className="bid-gutter">
+                    <span className="bid-num">{String(n).padStart(2, "0")}</span>
+                    <label className="check">
+                      <input
+                        type="checkbox"
+                        checked={done.has(id)}
+                        onChange={() => toggleDone(id)}
+                        aria-label={`Line ${n} entered`}
+                      />
+                    </label>
+                  </div>
                   <div className="bid-body">
                     <p className="bid-kind">{KIND_LABELS[line.kind]}</p>
                     <p className="bid-text">{line.text}</p>

@@ -4,6 +4,7 @@ import type { BidIntent, ImportResponse, PairingFormat } from "@holdline/types";
 import { useId, useState } from "react";
 import { importPairings, type AirlineOption } from "../../lib/api";
 import { monthLabel } from "../../lib/draft";
+import { Section } from "../section";
 import { Segmented } from "../segmented";
 
 type Crew = BidIntent["crewGroup"];
@@ -67,11 +68,8 @@ export function ImportForm({
   }
 
   return (
-    <div className="stack">
-      <section className="section" aria-labelledby="period-title">
-        <div className="section-head">
-          <h2 id="period-title">Bid period</h2>
-        </div>
+    <div className="stack narrow">
+      <Section id="period-title" step="01" title="Bid period">
         <div className="row">
           <div className="field">
             <label className="label" htmlFor={ids.airline}>
@@ -141,18 +139,14 @@ export function ImportForm({
             </select>
           </div>
         </div>
-      </section>
+      </Section>
 
-      <section className="section" aria-labelledby="file-title">
-        <div className="section-head">
-          <h2 id="file-title">Pairing file</h2>
-          <p className="hint">
-            Holdline reads its own CSV or JSON format for now. CSV columns: pairing, start_date
-            (YYYY-MM-DD), days, credit (H:MM), and optionally tafb, report and release (HH:MM) and
-            layovers (codes separated by spaces). Other columns are ignored and never stored, so
-            leave out names and employee numbers.
-          </p>
-        </div>
+      <Section
+        id="file-title"
+        step="02"
+        title="Pairing file"
+        hint="Holdline reads its own CSV or JSON format for now. CSV columns: pairing, start_date (YYYY-MM-DD), days, credit (H:MM), and optionally tafb, report and release (HH:MM) and layovers (codes separated by spaces). Other columns are ignored and never stored, so leave out names and employee numbers."
+      >
         <div className="row">
           <div className="field">
             <label className="label" htmlFor={ids.file}>
@@ -171,7 +165,7 @@ export function ImportForm({
         <p className="hint">
           Importing replaces any pairings already loaded for this airline, crew, base and month.
         </p>
-      </section>
+      </Section>
 
       <div className="actions">
         <button

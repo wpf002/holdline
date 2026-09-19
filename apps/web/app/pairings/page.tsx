@@ -18,16 +18,14 @@ export default async function PairingsPage() {
 
   return (
     <main className="page">
-      <header className="masthead">
-        <p className="hint">
-          <Link href="/">Holdline</Link>
-        </p>
+      <div className="hero">
+        <p className="eyebrow">Pool preview</p>
         <h1>Import pairings</h1>
         <p className="lede">
-          Load a month&apos;s pairings for your base, then build your bid to see how many pairings
-          each line removes.
+          Load a month&apos;s pairings for your base. Then <Link href="/">build your bid</Link> to
+          see how many pairings each line removes.
         </p>
-      </header>
+      </div>
       {airlines ? (
         <ImportForm airlines={airlines} apiUrl={apiUrl} months={bidMonths(new Date())} />
       ) : (
