@@ -17,7 +17,7 @@ export const env = {
   PORT: Number(process.env.PORT ?? process.env.API_PORT ?? 4000),
   CORS_ORIGINS: (process.env.CORS_ORIGINS ?? "http://localhost:3000").split(","),
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? "",
-  ANTHROPIC_MODEL: process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-5",
+  ANTHROPIC_MODEL: process.env.ANTHROPIC_MODEL ?? "claude-sonnet-5",
   PRODUCTION: production,
   /** Web app base URL, for links in emails and Stripe redirects. */
   WEB_URL: (process.env.WEB_URL ?? "http://localhost:3000").replace(/\/$/, ""),

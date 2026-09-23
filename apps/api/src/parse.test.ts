@@ -96,6 +96,37 @@ describe("createParser", () => {
     });
   });
 
+  it("opens a window around a single credit figure and says so", async () => {
+    const one = {
+      preferences: {
+        line: { creditMinutes: { min: 4800, max: 4800 } },
+        priorities: ["credit"],
+      },
+      questions: [],
+    };
+    const { create } = fakeClient(message([toolUse(one)]));
+    const result = await createParser(create, "m")(request);
+
+    expect(result.preferences!.line.creditMinutes).toEqual({ min: 4500, max: 5100 });
+    expect(result.questions[0]).toContain("80:00");
+    expect(result.questions[0]).toContain("75:00-85:00");
+  });
+
+  it("leaves a credit range the crew member gave alone", async () => {
+    const range = {
+      preferences: {
+        line: { creditMinutes: { min: 4200, max: 5100 } },
+        priorities: ["credit"],
+      },
+      questions: [],
+    };
+    const { create } = fakeClient(message([toolUse(range)]));
+    const result = await createParser(create, "m")(request);
+
+    expect(result.preferences!.line.creditMinutes).toEqual({ min: 4200, max: 5100 });
+    expect(result.questions).toEqual([]);
+  });
+
   it("treats a prose answer as a question for the crew member", async () => {
     const { create } = fakeClient(message([text("Which month is this bid for?")], "end_turn"));
     expect(await createParser(create, "m")(request)).toEqual({
