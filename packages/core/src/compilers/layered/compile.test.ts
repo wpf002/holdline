@@ -43,7 +43,7 @@ describe("layered compiler", () => {
       "Days Off: 24 Oct, 10 Oct, 11 Oct, 12 Oct",
       "Days Off on Day of Week: Sunday",
       "Target Credit Range: 75:00 - 85:00",
-      "Pairing Length: 3",
+      "Prefer Pairing Length: 3",
       "Report Between: 08:00 and 23:59",
       "Avoid Layover at City: ORD",
       "Layover at City: AUS",
@@ -60,7 +60,7 @@ describe("layered compiler", () => {
     expect(bid.groups[0]!.lines[4]!.uiPath).toEqual([
       "Layer 1",
       "Pairing tab",
-      "Pairing Length",
+      "Prefer Pairing Length",
       "3",
     ]);
     expect(bid.warnings).toEqual([

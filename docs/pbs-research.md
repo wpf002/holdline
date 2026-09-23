@@ -65,6 +65,8 @@ AVOID Work 07 Apr -- 17 Apr
 AWARD Work 01 Apr 0001 -- 30 Apr 2359 (L-)
 ```
 
+**Not verified as of 2026-09-23.** The three guides (Jeppesen PBS User Guide v5.30, ProBid Plus, ABC's of PBS) are hosted on prefbid.com and probidplus.com. Both still resolve, to the same address, and both refuse HTTP connections; no mirror exists. So `Pairing Length =`, `Layover Station and Length Any` and the `- HIGH` suffix are still only from search excerpts. A United pilot's bid screen is the way to settle them.
+
 ## Layered (American, AOS/SkyWest)
 
 7 cumulative layers; tabs Pairing / LH Days Off / Line. Max 300 bids/month (AA). OR within a property, AND across. Line property kinds: persistent, single-use per layer (Target Credit Range, Work Block Size, Cadence, Commutable Work Block), restrictive (can't tighten later without Clear Bids).
@@ -72,6 +74,22 @@ AWARD Work 01 Apr 0001 -- 30 Apr 2359 (L-)
 - Pairing: Prefer Pairing Length / Duty Period / Type, Prefer/Avoid Deadheads, Landing at City, Aircraft, Report Between, Release Between, Layover at City (+ on Date, Avoid), Min/Max Layover Time, Max TAFB-credit ratio, Min Avg Credit per Duty, Max Duty/Block per Duty, Min/Max Connection, Max Landings per Duty.
 - Line: Target Credit Range (default 70–90, allowed 40–110), Maximize Credit, Work Block Size, Pairing Mix, Cadence on Day-of-Week, Commutable Work Block, Allow Double-Up / Multiple Pairings, Waive rest rules, Avoid Person, Buddy With, Clear Bids.
 - AOS notation: `OFF1`, `OFFW1`; award codes `P1..P7`, `PN`, `CN`.
+
+**Wording checked 2026-09-23** against the JCBA Flight Attendant PBS Guide 10JAN19 (https://www.apfa.org/wp-content/uploads/2019/01/Flight-Attendant-PBS-Guide_10JAN19.pdf, contents pages list every property by tab) and SkyWest's AOS docs (https://www.swprefbid.com/aospbs/online_docs_SKYW.html). Both put the layer count at 7. The compiler's default table is American's; SkyWest's differences sit in that deployment's `config.labels`:
+
+| Holdline label | American (JCBA guide) | SkyWest (AOS) |
+|---|---|---|
+| days off, dates | Days Off calendar (`Selecting Days Off`) | `Off Days` -> specific day of month |
+| days off, weekday | none found; pick the dates | `Off Days` -> day of week |
+| weekends | `Maximize Weekend Days Off` | `Max Weekend Days Off` |
+| trip length | `Prefer Pairing Length` | `Pairing Length` |
+| specific pairing | `Pairing ID on a Specific Date` | `Pairing ID on a date` |
+| credit | `Target Credit Range (TCR)` | `Target Line Credit Range` |
+| days off between blocks | `Minimum Days Off Between Work Blocks` | `Min Off Days Between Work Blocks` |
+| deadheads | `Prefer Deadheads` / `Avoid Deadheads` | `Deadhead Preference` |
+| landings | `Maximum Landing per Duty` | `Max Landings Per Duty Period` |
+
+Same wording in both: `Report Between`, `Release Between`, `Layover at City`, `Work Block Size`, `Commutable Work Block`. `Avoid Layover at City` is American's; AOS lists no separate avoid property. Neither source is a screenshot, so `syntaxVerified` stays false.
 
 ## IBS / AD OPT
 

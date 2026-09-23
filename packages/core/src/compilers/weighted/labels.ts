@@ -5,8 +5,15 @@
 
 export const SOURCES = {
   EDV_AFA:
-    "https://edvafa.org/pbs-bidding-help (Endeavor AFA, PBS Bidding Help: Desire/Avoid, points, option names; fetched Sept 2026)",
+    "https://edvafa.org/pbs-bidding-help (Endeavor AFA, PBS Bidding Help: Desire/Avoid, points, option names; re-read 2026-09-23)",
 } as const;
+
+/*
+ * EDV_AFA, "How Do Bidding Options Score?": an option scores its points every time it's granted.
+ * Their example gives April 17th 800 points and Wednesdays 300, then warns that four granted
+ * Wednesdays score 1200 and out-weigh the date the crew member actually cared about. That's why
+ * compile.ts divides an option's budget by how many times it can score in the month.
+ */
 
 type Label = { text: string; source: string };
 

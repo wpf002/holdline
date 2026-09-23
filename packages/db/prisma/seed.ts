@@ -69,6 +69,9 @@ const rows: Row[] = [
 const ENVOY_AFA = "https://afaeagle.com/system/files/2025-08/pbs_generic_basic_bid.pdf";
 const AC_GUIDE =
   "https://accomponent.ca/wp-content/uploads/2021/02/PBS_Bidder_Guide_FINAL_Eng-Apr-2015.pdf";
+const AOS_DOCS = "https://www.swprefbid.com/aospbs/online_docs_SKYW.html";
+const APFA_GUIDE =
+  "https://www.apfa.org/wp-content/uploads/2019/01/Flight-Attendant-PBS-Guide_10JAN19.pdf";
 
 /** PbsDeployment.config (DeploymentConfig in @holdline/types). Only values read off a cited source. */
 const configs: Record<string, { sourceUrl: string; config: Prisma.InputJsonObject }> = {
@@ -86,6 +89,29 @@ const configs: Record<string, { sourceUrl: string; config: Prisma.InputJsonObjec
   },
   // Air Canada PBS Bidder's Guide (2015-04-10) p.4-13: 150 bid lines across all bid groups.
   "ACA:FLIGHT_ATTENDANT": { sourceUrl: AC_GUIDE, config: { maxBidLines: 150 } },
+  // SkyWest AOS docs (checked 2026-09-23): seven layers, and nine property names that differ from
+  // the layered default (American's JCBA guide wording). Avoid Layover at City isn't a separate
+  // AOS property, so it keeps the shared name until a SkyWest screen says otherwise.
+  "SKW:PILOT": {
+    sourceUrl: AOS_DOCS,
+    config: {
+      layers: 7,
+      labels: {
+        "prop.daysOff": "Off Days",
+        "prop.daysOfWeek": "Off Days on Day of Week",
+        "prop.weekends": "Max Weekend Days Off",
+        "prop.pairingLength": "Pairing Length",
+        "prop.pairingOnDate": "Pairing ID on a date",
+        "prop.creditRange": "Target Line Credit Range",
+        "prop.minDaysOffBetween": "Min Off Days Between Work Blocks",
+        "prop.avoidDeadheads": "Deadhead Preference",
+        "prop.maxLandings": "Max Landings Per Duty Period",
+      },
+    },
+  },
+  // JCBA Flight Attendant PBS Guide (10JAN19): the default layered wording comes from its contents
+  // pages, and it sets the layer count at 7.
+  "AAL:FLIGHT_ATTENDANT": { sourceUrl: APFA_GUIDE, config: { layers: 7 } },
 };
 
 for (const [code, name, crewGroup, vendor, confidence, notes] of rows) {

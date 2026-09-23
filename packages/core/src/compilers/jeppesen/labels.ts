@@ -9,6 +9,8 @@ export const SOURCES = {
     "docs/pbs-research.md, Jeppesen section: examples from the Jeppesen PBS User Guide v5.30 (http://prefbid.com/forum/documents/pbs_user_guide_v5.30.pdf, offline Sept 2026)",
   EXCERPT:
     "Search excerpts of the ProBid Plus User Guide (http://probidplus.com/downloads/ProBid_Plus_User_Guide.pdf) and ABC's of PBS (http://prefbid.com/ABCs/ABCs_20.pdf); both hosts refused connections Sept 2026, so these are unread",
+  RECHECK:
+    "2026-09-23: prefbid.com and probidplus.com still resolve (both 70.35.196.138) but refuse HTTP connections, and no mirror of the guide turned up. Every label below is still second-hand. A United pilot's bid screen is the only way to verify them",
 } as const;
 
 type Label = { text: string; source: string };
