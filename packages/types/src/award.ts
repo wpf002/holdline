@@ -62,3 +62,23 @@ export const HoldEstimates = z.object({
   groups: z.array(z.object({ lines: z.array(z.array(LineHold).nullable()) })),
 });
 export type HoldEstimates = z.infer<typeof HoldEstimates>;
+
+/**
+ * What the bid package's own line counts say about where a seniority number falls. The airline
+ * publishes how many pairing lines and reserve lines it's building for a base and seat, and lines
+ * are awarded in seniority order, so the counts alone answer "do I hold a line this month".
+ *
+ * It assumes the crew member's seniority is their standing on that base and seat list, which is
+ * what the bid package covers. It's a cutoff, not an award prediction.
+ */
+export const LineOdds = z.object({
+  month: z.string(),
+  seniority: z.number().int().nullable(),
+  pairingLines: z.number().int().nonnegative(),
+  reserveLines: z.number().int().nonnegative(),
+  /** LINE inside the pairing lines, RESERVE inside the reserve lines, BEYOND past both. */
+  outcome: z.enum(["LINE", "RESERVE", "BEYOND", "UNKNOWN"]),
+  /** Seniority numbers between this crew member and the first reserve line; negative once past it. */
+  toReserve: z.number().int().nullable(),
+});
+export type LineOdds = z.infer<typeof LineOdds>;

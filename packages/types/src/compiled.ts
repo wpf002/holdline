@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { PreferenceKey } from "./intent.js";
-import { HoldEstimates } from "./award.js";
+import { HoldEstimates, LineOdds } from "./award.js";
 import { PairingMatch, PoolPreview } from "./pairing.js";
 
 export const PbsVendor = z.enum(["NAVBLUE", "JEPPESEN", "IBS_ADOPT", "AOS", "UNKNOWN"]);
@@ -57,11 +57,13 @@ export type CompiledBid = z.infer<typeof CompiledBid>;
 export const CompileExtras = z.object({ seniority: z.number().int().min(1).optional() });
 
 /**
- * POST /bids/compile: the bid, pairing counts when the bid period has been imported, and hold
- * estimates when past award results for the base have been imported.
+ * POST /bids/compile: the bid, pairing counts when the bid period has been imported, hold
+ * estimates when past award results for the base have been imported, and where the crew member's
+ * seniority falls against the lines the bid package says the airline is building.
  */
 export const CompileResponse = CompiledBid.extend({
   preview: PoolPreview.nullable(),
   holds: HoldEstimates.nullable(),
+  odds: LineOdds.nullable(),
 });
 export type CompileResponse = z.infer<typeof CompileResponse>;

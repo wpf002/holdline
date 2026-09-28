@@ -6,6 +6,7 @@ import type {
   CompiledLine,
   HoldEstimates,
   LineHold,
+  LineOdds,
   LinePreview,
 } from "@holdline/types";
 import Link from "next/link";
@@ -72,6 +73,31 @@ function holdNote(hold: LineHold, seniority: number | null): string {
         ? ", within your seniority"
         : ", more senior than you";
   return `${monthShort(hold.month)}: held down to #${hold.juniorMost} (${hold.awarded} awarded)${reach}.`;
+}
+
+/** What the bid package's own line counts say about holding a line at this seniority. */
+function LineOddsSummary({ odds }: { odds: LineOdds }) {
+  const lines = `${odds.pairingLines} pairing lines and ${odds.reserveLines} reserve lines`;
+  const spare = odds.toReserve ?? 0;
+  const verdict =
+    odds.outcome === "LINE"
+      ? `At #${odds.seniority} you're inside the pairing lines, with ${spare} ${spare === 1 ? "number" : "numbers"} to spare.`
+      : odds.outcome === "RESERVE"
+        ? `At #${odds.seniority} you're ${-spare} past the last pairing line, so this month is reserve.`
+        : odds.outcome === "BEYOND"
+          ? `At #${odds.seniority} you're past every line this base is building. Check the seniority number you entered.`
+          : null;
+  return (
+    <div className="notice">
+      <p className="notice-title">Lines this month</p>
+      {verdict && <p className="hold-verdict">{verdict}</p>}
+      <p>
+        {monthShort(odds.month)} has {lines} for your base and seat. PBS awards in seniority order,
+        so that cutoff decides whether you hold a line at all. It can&apos;t say which pairings
+        you&apos;ll get.
+      </p>
+    </div>
+  );
 }
 
 /** What past award results say about holding a line at this seniority. */
@@ -176,6 +202,7 @@ export function CompiledBidView({
         )
       )}
 
+      {bid.odds && <LineOddsSummary odds={bid.odds} />}
       {bid.holds && bid.holds.months.length > 0 && <HoldSummary holds={bid.holds} />}
 
       {bid.preview ? (

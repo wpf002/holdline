@@ -5,6 +5,7 @@ import {
   canCompile,
   compile,
   estimateHolds,
+  lineOdds,
   parseAwardFile,
   parsePairingFile,
   previewPool,
@@ -202,12 +203,12 @@ export async function buildApp(
       );
     }
 
-    // Reserve groups don't draw from the pairing pool, so only line bids get counts.
-    const period =
-      intent.lineType === "LINEHOLDER"
-        ? await store.loadPairings(deployment.id, intent.base, intent.month)
-        : null;
+    // Reserve groups don't draw from the pairing pool, so only line bids get counts. The line
+    // counts on the period apply either way: they say whether a line is holdable at all.
+    const imported = await store.loadPairings(deployment.id, intent.base, intent.month);
+    const period = intent.lineType === "LINEHOLDER" ? imported : null;
     const preview = period ? previewPool(bid, period.pairings, period.importedAt) : null;
+    const odds = imported ? lineOdds(intent.month, imported, extras.data.seniority) : null;
     const history = await store.loadHistory(
       deployment.id,
       intent.base,
@@ -215,7 +216,7 @@ export async function buildApp(
       HISTORY_MONTHS,
     );
     const holds = history.length ? estimateHolds(bid, history, extras.data.seniority) : null;
-    return { ...bid, preview, holds } satisfies CompileResponse;
+    return { ...bid, preview, holds, odds } satisfies CompileResponse;
   });
 
   // Plain English -> draft intent. The form stays the source of truth; this only pre-fills it.
