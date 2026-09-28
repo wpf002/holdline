@@ -7,6 +7,7 @@ import type {
   ImportResponse,
   ParseRequest,
   ParseResponse,
+  ResultsImportRequest,
   PbsVendor,
 } from "@holdline/types";
 
@@ -66,6 +67,11 @@ function describeError(status: number, body: ErrorBody | null): string {
       return `No awards could be read from that file. ${(body.errors ?? [])
         .slice(0, 3)
         .map((e) => (e.line ? `Line ${e.line}: ${e.message}` : e.message))
+        .join(" ")}`;
+    case "no_results":
+      return `Holdline couldn't find any numbered bid lines in that. ${(body.errors ?? [])
+        .slice(0, 2)
+        .map((e) => e.message)
         .join(" ")}`;
     case "no_pairings":
       return `No pairings could be read from that file. ${(body.errors ?? [])
@@ -139,6 +145,9 @@ export const parseDescription = (apiUrl: string, request: ParseRequest) =>
 
 export const importAwards = (apiUrl: string, request: AwardImportRequest) =>
   post<ImportResponse>(apiUrl, "/awards/import", request);
+
+export const importResults = (apiUrl: string, request: ResultsImportRequest) =>
+  post<ImportResponse>(apiUrl, "/results/import", request);
 
 // ── Account ────────────────────────────────────────────────────────────
 

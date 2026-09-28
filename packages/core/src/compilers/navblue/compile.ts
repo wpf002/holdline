@@ -36,7 +36,14 @@ import { navblueLabels, type NavblueLabels } from "./labels.js";
  * Denial Mode keeps.
  */
 
-type Part = { negatives: CompiledLine[]; awards: CompiledLine[] };
+/**
+ * `shape` holds criteria that describe the trips the crew member wants rather than ruling any out.
+ * They're chained onto one Award line with " If ", the way a real bid reads:
+ * "Award Pairings If Pairing Length Between 1 days And 3 days If Pairing Check-In Time > 10:00".
+ * Avoid lines stay separate, because each one removes a different set of pairings on its own.
+ */
+type Criterion = { text: string; steps: string[]; match: PairingMatch; verified: boolean };
+type Part = { negatives: CompiledLine[]; awards: CompiledLine[]; shape?: Criterion[] };
 const EMPTY: Part = { negatives: [], awards: [] };
 
 interface Ctx {
@@ -84,7 +91,8 @@ export function compileNavblue(intent: BidIntent, config: DeploymentConfig = {})
         continue;
       }
       const part = BUILDERS[key](c);
-      if (part.negatives.length + part.awards.length > 0) built.set(key, part);
+      const size = part.negatives.length + part.awards.length + (part.shape?.length ?? 0);
+      if (size > 0) built.set(key, part);
     }
     const { order, unranked } = resolvePriorities(intent.priorities, [...built.keys()]);
     if (complain && unranked.length) {
@@ -93,9 +101,16 @@ export function compileNavblue(intent: BidIntent, config: DeploymentConfig = {})
       );
     }
     if (complain && order.length === 0) c.warn("None of your preferences produced a bid line.");
+    // Criteria describing the wanted trip collapse into one Award line, carried by the
+    // highest-priority preference that contributed to it.
+    const shape = order.flatMap((k) => built.get(k)!.shape ?? []);
+    const carrier = order.find((k) => built.get(k)!.shape?.length);
     return {
       negatives: order.flatMap((k) => built.get(k)!.negatives),
-      awards: order.flatMap((k) => built.get(k)!.awards),
+      awards: order.flatMap((k) => {
+        const own = built.get(k)!.awards;
+        return k === carrier ? [shapeLine(c, shape, k), ...own] : own;
+      }),
     };
   };
 
@@ -150,13 +165,18 @@ export function compileNavblue(intent: BidIntent, config: DeploymentConfig = {})
 
 // ── Line helpers ──────────────────────────────────────────────────────
 
+/**
+ * Every line goes through here, and every label it needed was looked up while its arguments were
+ * being evaluated, so takeVerified() reports on exactly this line's wording.
+ */
 function line(
+  c: Ctx,
   kind: CompiledLine["kind"],
   text: string,
   uiPath: string[],
   extra: { preference?: PreferenceKey; match?: PairingMatch } = {},
 ): CompiledLine {
-  const out: CompiledLine = { kind, text, uiPath };
+  const out: CompiledLine = { kind, text, uiPath, verified: c.L.takeVerified() };
   if (extra.preference) out.preference = extra.preference;
   if (extra.match) out.match = extra.match;
   return out;
@@ -170,7 +190,7 @@ function avoid(
   preference?: PreferenceKey,
 ): CompiledLine {
   const { L } = c;
-  return line("AVOID", `${L("line.avoid")} ${criteria}`, [L("ui.avoid"), ...steps, L("ui.apply")], {
+  return line(c, "AVOID", `${L("line.avoid")} ${criteria}`, [L("ui.avoid"), ...steps, L("ui.apply")], {
     preference,
     match,
   });
@@ -184,7 +204,7 @@ function award(
   preference: PreferenceKey,
 ): CompiledLine {
   const { L } = c;
-  return line("AWARD", `${L("line.award")} ${criteria}`, [L("ui.award"), ...steps, L("ui.apply")], {
+  return line(c, "AWARD", `${L("line.award")} ${criteria}`, [L("ui.award"), ...steps, L("ui.apply")], {
     preference,
     match,
   });
@@ -202,7 +222,23 @@ function setCondition(
       ? `${L("line.set")} ${condition}`
       : `${L("line.set")} ${condition} ${value}`;
   const steps = value === undefined ? [condition] : [condition, `Enter ${value}`];
-  return line("SET", text, [L("ui.set"), ...steps, L("ui.apply")], { preference });
+  return line(c, "SET", text, [L("ui.set"), ...steps, L("ui.apply")], { preference });
+}
+
+/** One Award line carrying every criterion that describes the trips the crew member wants. */
+function shapeLine(c: Ctx, criteria: Criterion[], preference: PreferenceKey): CompiledLine {
+  const { L } = c;
+  // Criteria after the first are chained with " If " (KB_SAMPLE_1, AC_GUIDE p.4-6, ENY_SCREEN).
+  const text = `${L("line.award")} ${criteria.map((x) => x.text).join(" If ")}`;
+  const steps = criteria.flatMap((x) => x.steps);
+  const match: PairingMatch =
+    criteria.length === 1 ? criteria[0]!.match : { type: "all", of: criteria.map((x) => x.match) };
+  const out = line(c, "AWARD", text, [L("ui.award"), ...steps, L("ui.apply")], {
+    preference,
+    match,
+  });
+  out.verified = out.verified !== false && criteria.every((x) => x.verified);
+  return out;
 }
 
 /** The airline's reserve call types, most wanted first, above the rest of the reserve group. */
@@ -226,9 +262,9 @@ function pairingGroup(c: Ctx, lines: CompiledLine[]): CompiledGroup {
     label: "Bid Group 1",
     relaxed: [],
     lines: [
-      line("SYSTEM", L("group.pairings"), addGroupPath(c, L("ui.pairingGroup"))),
+      line(c, "SYSTEM", L("group.pairings"), addGroupPath(c, L("ui.pairingGroup"))),
       ...lines,
-      line("SYSTEM", L("group.pairings.end"), [], { match: { type: "any" } }),
+      line(c, "SYSTEM", L("group.pairings.end"), [], { match: { type: "any" } }),
     ],
   };
 }
@@ -238,7 +274,7 @@ function reserveGroup(c: Ctx, lines: CompiledLine[], label = "Bid Group 2"): Com
   return {
     label,
     relaxed: [],
-    lines: [line("SYSTEM", L("group.reserve"), addGroupPath(c, L("group.reserve"))), ...lines],
+    lines: [line(c, "SYSTEM", L("group.reserve"), addGroupPath(c, L("group.reserve"))), ...lines],
   };
 }
 
@@ -249,7 +285,7 @@ function reserveGroups(c: Ctx, lines: CompiledLine[]): CompiledGroup[] {
     {
       label: "Bid Group 1",
       relaxed: [],
-      lines: [line("SYSTEM", L("group.reserveJump"), addGroupPath(c, L("group.reserveJump")))],
+      lines: [line(c, "SYSTEM", L("group.reserveJump"), addGroupPath(c, L("group.reserveJump")))],
     },
     reserveGroup(c, lines),
   ];
@@ -267,7 +303,7 @@ function waivers(c: Ctx, reserve: boolean): CompiledLine[] {
     } else if (RESERVE_ONLY_WAIVERS.has(key) && !reserve) {
       c.warn(`Skipped waiver "${key}": reserve bids only.`);
     } else {
-      out.push(line("WAIVE", `${L("line.waive")} ${text}`, [L("ui.waive"), text, L("ui.apply")]));
+      out.push(line(c, "WAIVE", `${L("line.waive")} ${text}`, [L("ui.waive"), text, L("ui.apply")]));
     }
   }
   return out;
@@ -317,7 +353,7 @@ function daysOff(c: Ctx): Part {
   const add = (text: string, steps: string[], match: PairingMatch) =>
     out.push(
       line(
-        "PREFER_OFF",
+        c, "PREFER_OFF",
         `${L("line.preferOff")} ${text}`,
         [L("ui.preferOff"), ...steps, L("ui.apply")],
         { preference: "daysOff", match },
@@ -351,7 +387,7 @@ function daysOff(c: Ctx): Part {
   if (consecutive !== undefined) {
     out.push(
       line(
-        "SET",
+        c, "SET",
         `${L("line.set")} ${consecutive} ${L("set.consecutiveDaysOff")}`,
         [L("ui.set"), L("set.consecutiveDaysOff"), `Enter ${consecutive}`, L("ui.apply")],
         { preference: "daysOff" },
@@ -373,61 +409,68 @@ function pairingLength(c: Ctx): Part {
   if (!len) return EMPTY;
   const { L } = c;
   const crit = L("crit.pairingLength");
-  const out: CompiledLine[] = [];
-  if (len.min > 1) {
-    out.push(
-      avoid(
-        c,
-        `${crit} < ${len.min} ${L("unit.days")}`,
-        [crit, L("ui.lessThan"), String(len.min)],
-        { type: "lengthBelow", days: len.min },
-        "pairingLength",
-      ),
-    );
-  }
-  if (len.max < LONGEST_PAIRING_DAYS) {
-    out.push(
-      avoid(
-        c,
-        `${crit} > ${len.max} ${L("unit.days")}`,
-        [crit, L("ui.greaterThan"), String(len.max)],
-        { type: "lengthAbove", days: len.max },
-        "pairingLength",
-      ),
-    );
-  }
-  return { negatives: out, awards: [] };
+  const days = L("unit.days");
+  const open = { min: len.min <= 1, max: len.max >= LONGEST_PAIRING_DAYS };
+  if (open.min && open.max) return EMPTY;
+  // "Pairing Length Between 1 days And 2 days" (KB_SAMPLE_2); one-sided ranges use an operator.
+  const criterion: Omit<Criterion, "verified"> = open.max
+    ? {
+        text: `${crit} ${L("op.atLeast")} ${len.min} ${days}`,
+        steps: [crit, L("ui.greaterThan"), String(len.min - 1)],
+        match: { type: "lengthBelow", days: len.min },
+      }
+    : open.min
+      ? {
+          text: `${crit} ${L("op.atMost")} ${len.max} ${days}`,
+          steps: [crit, L("ui.lessThan"), String(len.max + 1)],
+          match: { type: "lengthAbove", days: len.max },
+        }
+      : len.min === len.max
+        ? {
+            text: `${crit} ${L("op.equals")} ${len.min} ${days}`,
+            steps: [crit, L("ui.equalTo"), String(len.min)],
+            match: { type: "lengthIs", days: len.min },
+          }
+        : {
+            text: `${crit} ${L("op.between")} ${len.min} ${days} ${L("op.and")} ${len.max} ${days}`,
+            steps: [crit, L("ui.range"), `${len.min} to ${len.max}`],
+            match: { type: "lengthBetween", min: len.min, max: len.max },
+          };
+  // The match above describes what to rule out for one-sided ranges; flip it to what to award.
+  const match: PairingMatch = open.max
+    ? { type: "lengthBetween", min: len.min, max: LONGEST_PAIRING_DAYS }
+    : open.min
+      ? { type: "lengthBetween", min: 1, max: len.max }
+      : { type: "lengthBetween", min: len.min, max: len.max };
+  // Taken here because these labels were resolved above, before any line was built from them.
+  return { negatives: [], awards: [], shape: [{ ...criterion, match, verified: L.takeVerified() }] };
 }
 
 function reportRelease(c: Ctx): Part {
   const { L } = c;
   const { reportAfter, releaseBefore } = c.intent.pairings;
-  const out: CompiledLine[] = [];
+  const shape: Criterion[] = [];
   if (reportAfter) {
-    const steps = [L("crit.checkIn"), L("op.before"), reportAfter];
-    out.push(
-      avoid(
-        c,
-        `${L("crit.checkIn")} ${L("op.before")} ${reportAfter}`,
-        steps,
-        { type: "reportBefore", time: reportAfter },
-        "reportRelease",
-      ),
-    );
+    const text = `${L("crit.checkIn")} ${L("op.after")} ${reportAfter}`;
+    const steps = [L("crit.checkIn"), L("ui.greaterThan"), reportAfter];
+    shape.push({
+      text,
+      steps,
+      match: { type: "reportBetween", from: reportAfter, to: "23:59" },
+      verified: L.takeVerified(),
+    });
   }
   if (releaseBefore) {
-    const steps = [L("crit.checkOut"), L("op.after"), releaseBefore];
-    out.push(
-      avoid(
-        c,
-        `${L("crit.checkOut")} ${L("op.after")} ${releaseBefore}`,
-        steps,
-        { type: "releaseAfter", time: releaseBefore },
-        "reportRelease",
-      ),
-    );
+    const text = `${L("crit.checkOut")} ${L("op.before")} ${releaseBefore}`;
+    const steps = [L("crit.checkOut"), L("ui.lessThan"), releaseBefore];
+    shape.push({
+      text,
+      steps,
+      match: { type: "releaseBetween", from: "00:00", to: releaseBefore },
+      verified: L.takeVerified(),
+    });
   }
-  return { negatives: out, awards: [] };
+  return shape.length ? { negatives: [], awards: [], shape } : EMPTY;
 }
 
 function layovers(c: Ctx): Part {
@@ -481,7 +524,7 @@ function specificPairings(c: Ctx): Part {
       "Award",
     ];
     awards.push(
-      line("AWARD", text, uiPath, {
+      line(c, "AWARD", text, uiPath, {
         preference: "specificPairings",
         match: { type: "pairingOn", number: p.number, date: p.date },
       }),

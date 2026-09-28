@@ -1,6 +1,6 @@
 import type { HistoryMonth } from "@holdline/core";
-import type { Db, Pairing as PairingRow } from "@holdline/db";
-import { Award, Pairing } from "@holdline/types";
+import { Prisma, type Db, type Pairing as PairingRow } from "@holdline/db";
+import { Award, BidResults, DeploymentConfig, Pairing } from "@holdline/types";
 import type { Store } from "./app.js";
 
 const isoDate = (d: Date) => d.toISOString().slice(0, 10);
@@ -43,7 +43,27 @@ export function prismaStore(db: Db): Store {
         pairings: found.pairings.map(toPairing),
         pairingLines: found.pairingLines,
         reserveLines: found.reserveLines,
+        creditWindows: DeploymentConfig.shape.creditWindows.safeParse(
+          found.creditWindows ?? undefined,
+        ).data,
       };
+    },
+
+    async saveResults(deploymentId, base, month, results) {
+      await db.bidResult.upsert({
+        where: { deploymentId_base_month: { deploymentId, base, month } },
+        update: { importedAt: new Date(), results },
+        create: { deploymentId, base, month, results },
+      });
+    },
+    async loadResults(deploymentId, base, month) {
+      const row = await db.bidResult.findFirst({
+        where: { deploymentId, base, month: { lt: month } },
+        orderBy: { month: "desc" },
+      });
+      const parsed = row && BidResults.safeParse(row.results);
+      if (!row || !parsed?.success) return null;
+      return { ...parsed.data, month: row.month, importedAt: row.importedAt.toISOString() };
     },
 
     async saveAwards(deploymentId, base, month, awards) {
@@ -103,6 +123,8 @@ export function prismaStore(db: Db): Store {
         const counts = {
           pairingLines: lines?.pairingLines ?? null,
           reserveLines: lines?.reserveLines ?? null,
+          // Prisma wants JsonNull rather than null to clear a JSON column.
+          creditWindows: (lines?.creditWindows ?? Prisma.JsonNull) as Prisma.InputJsonValue,
         };
         const { id } = await tx.bidPeriod.upsert({
           where: period(deploymentId, base, month),

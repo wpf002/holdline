@@ -8,6 +8,7 @@ import {
   lineOdds,
   parseAwardFile,
   parsePairingFile,
+  parseReasons,
   previewPool,
   type HistoryMonth,
 } from "@holdline/core";
@@ -19,8 +20,11 @@ import {
   DeploymentConfig,
   ImportRequest,
   ParseRequest,
+  ResultsImportRequest,
   type Award,
+  type BidResults,
   type CompileResponse,
+  type PastResults,
   type ImportResponse,
   type Pairing,
   type BidDialect,
@@ -59,6 +63,8 @@ export interface PairingPeriod {
   /** Lines published for this base and seat, from the bid package. */
   pairingLines?: number | null;
   reserveLines?: number | null;
+  /** The month's credit windows, when the package carried them. */
+  creditWindows?: DeploymentConfig["creditWindows"];
 }
 
 /** What the routes read and write. store.ts backs this with Prisma; tests pass fixtures. */
@@ -73,9 +79,22 @@ export interface Store {
     base: string,
     month: string,
     pairings: Pairing[],
-    /** Lines the airline published for this bid period, when the file says. */
-    lines?: { pairingLines?: number; reserveLines?: number },
+    /** What the file said about the bid period itself. */
+    lines?: {
+      pairingLines?: number;
+      reserveLines?: number;
+      creditWindows?: DeploymentConfig["creditWindows"];
+    },
   ): Promise<void>;
+  /** Replaces the Results screen report for one deployment, base and month. */
+  saveResults(
+    deploymentId: string,
+    base: string,
+    month: string,
+    results: BidResults,
+  ): Promise<void>;
+  /** The most recently imported Results report before `month`, or null. */
+  loadResults(deploymentId: string, base: string, month: string): Promise<PastResults | null>;
   /** Replaces the award results for one deployment, base and month. */
   saveAwards(deploymentId: string, base: string, month: string, awards: Award[]): Promise<void>;
   /** Up to `limit` months before `month` that have award results, with their pairings. */
@@ -183,9 +202,16 @@ export async function buildApp(
       return reply.code(500).send({ error: "invalid_deployment_config" });
     }
 
+    // The bid package publishes credit windows per base, seat and month, so an imported one wins
+    // over anything on the deployment.
+    const imported = await store.loadPairings(deployment.id, intent.base, intent.month);
+    const periodConfig: DeploymentConfig = imported?.creditWindows
+      ? { ...config.data, creditWindows: imported.creditWindows }
+      : config.data;
+
     let bid;
     try {
-      bid = compile(intent, deployment.vendor, config.data, deployment.dialect);
+      bid = compile(intent, deployment.vendor, periodConfig, deployment.dialect);
     } catch (err) {
       if (err instanceof UnsupportedVendorError) {
         return reply.code(501).send({
@@ -205,7 +231,6 @@ export async function buildApp(
 
     // Reserve groups don't draw from the pairing pool, so only line bids get counts. The line
     // counts on the period apply either way: they say whether a line is holdable at all.
-    const imported = await store.loadPairings(deployment.id, intent.base, intent.month);
     const period = intent.lineType === "LINEHOLDER" ? imported : null;
     const preview = period ? previewPool(bid, period.pairings, period.importedAt) : null;
     const odds = imported ? lineOdds(intent.month, imported, extras.data.seniority) : null;
@@ -216,7 +241,8 @@ export async function buildApp(
       HISTORY_MONTHS,
     );
     const holds = history.length ? estimateHolds(bid, history, extras.data.seniority) : null;
-    return { ...bid, preview, holds, odds } satisfies CompileResponse;
+    const lastResults = await store.loadResults(deployment.id, intent.base, intent.month);
+    return { ...bid, preview, holds, odds, lastResults } satisfies CompileResponse;
   });
 
   // Plain English -> draft intent. The form stays the source of truth; this only pre-fills it.
@@ -284,6 +310,33 @@ export async function buildApp(
       summary,
     );
     return { imported: pairings.length, errors } satisfies ImportResponse;
+  });
+
+  // A past month's Reasons report, copied off the Results screen: what PBS did with each bid line.
+  app.post("/results/import", { bodyLimit: IMPORT_BODY_LIMIT }, async (req, reply) => {
+    const body = ResultsImportRequest.safeParse(req.body);
+    if (!body.success) {
+      return reply.code(400).send({ error: "invalid_request", issues: body.error.issues });
+    }
+    const request = {
+      ...body.data,
+      airline: body.data.airline.toUpperCase(),
+      base: body.data.base.toUpperCase(),
+    };
+    const found = await findDeployment(request.airline, request.crewGroup, reply);
+    if (!found) return reply;
+
+    const results = parseReasons(request.data);
+    if (results.lines.length === 0) {
+      return reply.code(422).send({
+        error: "no_results",
+        errors: [
+          { line: 0, message: "No numbered bid lines found. Copy the whole Reasons report." },
+        ],
+      });
+    }
+    await store.saveResults(found.deployment.id, request.base, request.month, results);
+    return { imported: results.lines.length, errors: [] } satisfies ImportResponse;
   });
 
   // One past bid period's award results (docs/award-import.md), for hold estimates. Only seniority and

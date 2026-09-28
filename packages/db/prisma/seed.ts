@@ -89,10 +89,10 @@ const configs: Record<string, { sourceUrl: string; config: Prisma.InputJsonObjec
       },
     },
   },
-  // Read off an ORD captain's own October 2026 bid screen (screenshots, 2026-09-28) plus that
-  // month's ORD CA bid package. Envoy names the groups after the screen, drops "Before"/"After"
-  // from the operators, and writes Any Layover In / Any Duty Legs / Legs. Credit windows are
-  // per base, seat and month: these are ORD CA October 2026 and need re-reading each package.
+  // Read off an ORD captain's own October 2026 bid screen (screenshots, 2026-09-28). Envoy names
+  // the groups after the screen, drops "Before"/"After" from the operators, and writes
+  // Any Layover In / Any Duty Legs / Legs. Credit windows aren't here: they change every month,
+  // so they come from the imported bid package instead.
   "ENY:PILOT": {
     sourceUrl: ENY_PACKAGE,
     config: {
@@ -105,11 +105,6 @@ const configs: Record<string, { sourceUrl: string; config: Prisma.InputJsonObjec
         "unit.legs": "Legs",
         "op.before": "<",
         "op.after": ">",
-      },
-      creditWindows: {
-        minimum: { min: 70 * 60 + 1, max: 80 * 60 + 1 },
-        normal: { min: 76 * 60 + 1, max: 90 * 60 + 1 },
-        maximum: { min: 86 * 60 + 1, max: 100 * 60 + 1 },
       },
     },
   },

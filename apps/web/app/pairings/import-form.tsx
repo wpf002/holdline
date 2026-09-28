@@ -2,13 +2,13 @@
 
 import type { BidIntent, ImportResponse, PairingFormat } from "@holdline/types";
 import { useId, useState } from "react";
-import { importAwards, importPairings, type AirlineOption } from "../../lib/api";
+import { importAwards, importPairings, importResults, type AirlineOption } from "../../lib/api";
 import { monthLabel } from "../../lib/draft";
 import { Section } from "../section";
 import { Segmented } from "../segmented";
 
 type Crew = BidIntent["crewGroup"];
-type Kind = "pairings" | "awards";
+type Kind = "pairings" | "awards" | "results";
 
 const FORMATS: { value: PairingFormat; label: string }[] = [
   { value: "fos-pdf", label: "Bid package" },
@@ -27,6 +27,8 @@ function base64(file: File): Promise<string> {
 }
 
 const FILE_HINTS: Record<Kind, string> = {
+  results:
+    "Open the Results screen for a past month, scroll to Reasons, and copy the whole thing. Holdline reads each numbered line and what PBS did with it. Nothing else from that screen is stored.",
   pairings:
     "Your airline's bid package PDF, as published. Holdline also reads its own CSV or JSON: columns pairing, start_date (YYYY-MM-DD), days, credit (H:MM), and optionally tafb, report and release (HH:MM) and layovers (codes separated by spaces). Other columns are ignored and never stored.",
   awards:
@@ -47,7 +49,7 @@ export function ImportForm({
   defaultMonth: string;
   lastMonth: string;
 }) {
-  const ids = { airline: useId(), base: useId(), month: useId(), file: useId() };
+  const ids = { airline: useId(), base: useId(), month: useId(), file: useId(), text: useId() };
   const [kind, setKind] = useState<Kind>("pairings");
   const [airline, setAirline] = useState("");
   const [crewGroup, setCrewGroup] = useState<Crew>("PILOT");
@@ -55,19 +57,22 @@ export function ImportForm({
   const [month, setMonth] = useState(defaultMonth);
   const [format, setFormat] = useState<PairingFormat>("holdline-csv");
   const [file, setFile] = useState<File | null>(null);
+  const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ kind: Kind; response: ImportResponse } | null>(null);
 
   const crews = airlines.find((a) => a.code === airline)?.deployments.map((d) => d.crewGroup) ?? [];
-  const noun = kind === "pairings" ? "pairing" : "award";
+  const nouns: Record<Kind, string> = { pairings: "pairing", awards: "award", results: "line" };
+  const noun = nouns[kind];
 
   function chooseKind(next: Kind) {
     setKind(next);
     setResult(null);
     setError(null);
     // Award results are for past months; pairings default to the month being bid.
-    setMonth(next === "awards" ? lastMonth : defaultMonth);
+    setText("");
+    setMonth(next === "pairings" ? defaultMonth : lastMonth);
   }
 
   function chooseFile(next: File | null) {
@@ -79,23 +84,32 @@ export function ImportForm({
   }
 
   async function upload() {
+    const needsFile = kind !== "results";
     const problem = !airline
       ? "Choose your airline."
       : !/^[A-Za-z]{3}$/.test(base)
         ? "Enter your base as a 3-letter code."
-        : !file
+        : needsFile && !file
           ? `Choose ${kind === "pairings" ? "a pairing" : "an award results"} file.`
-          : null;
+          : !needsFile && text.trim().length < 10
+            ? "Paste the Reasons report from your Results screen."
+            : null;
     if (problem) return setError(problem);
     setBusy(true);
     setError(null);
     setResult(null);
     const period = { airline, crewGroup, base: base.toUpperCase(), month };
-    const data = format === "fos-pdf" ? await base64(file!) : await file!.text();
+    const data = !needsFile
+      ? text
+      : format === "fos-pdf"
+        ? await base64(file!)
+        : await file!.text();
     const res =
       kind === "pairings"
         ? await importPairings(apiUrl, { ...period, format, data })
-        : await importAwards(apiUrl, { ...period, format: "holdline-awards-csv", data });
+        : kind === "results"
+          ? await importResults(apiUrl, { ...period, data })
+          : await importAwards(apiUrl, { ...period, format: "holdline-awards-csv", data });
     setBusy(false);
     if (!res.ok) return setError(res.message);
     setResult({ kind, response: res.data });
@@ -109,6 +123,7 @@ export function ImportForm({
           value={kind}
           options={[
             { value: "pairings", label: "Pairings" },
+            { value: "results", label: "Your results" },
             { value: "awards", label: "Award results" },
           ]}
           onChange={chooseKind}
@@ -116,7 +131,9 @@ export function ImportForm({
         <p className="hint">
           {kind === "pairings"
             ? "A month's pairings for your base. Holdline counts how many each bid line removes."
-            : "Past award results for your base. With your seniority, Holdline shows how far down lines and each kind of pairing went."}
+            : kind === "results"
+              ? "The Reasons report off your own Results screen. Holdline shows what PBS did with each line last month, next to the same line this month."
+              : "Past award results for your base. With your seniority, Holdline shows how far down lines and each kind of pairing went."}
         </p>
       </Section>
 
@@ -195,9 +212,31 @@ export function ImportForm({
       <Section
         id="file-title"
         step="03"
-        title={kind === "pairings" ? "Pairing file" : "Award results file"}
+        title={
+          kind === "pairings"
+            ? "Pairing file"
+            : kind === "results"
+              ? "Reasons report"
+              : "Award results file"
+        }
         hint={FILE_HINTS[kind]}
       >
+        {kind === "results" ? (
+          <div className="field">
+            <label className="label" htmlFor={ids.text}>
+              Paste it here
+            </label>
+            <textarea
+              id={ids.text}
+              className="input textarea mono"
+              rows={10}
+              value={text}
+              spellCheck={false}
+              placeholder={"  9.      Set Condition RSV Call Type R2\n Maximum number of bidders reached\n 10.      Set Condition RSV Call Type R1\n Honored"}
+              onChange={(e) => setText(e.target.value)}
+            />
+          </div>
+        ) : (
         <div className="row">
           <div className="field">
             <label className="label" htmlFor={ids.file}>
@@ -219,6 +258,7 @@ export function ImportForm({
             <Segmented label="Format" value={format} options={FORMATS} onChange={setFormat} />
           )}
         </div>
+        )}
         <p className="hint">
           Importing replaces any {noun}s already loaded for this airline, crew, base and month.
         </p>
@@ -232,7 +272,13 @@ export function ImportForm({
           disabled={busy}
           aria-busy={busy}
         >
-          {busy ? "Importing…" : kind === "pairings" ? "Import pairings" : "Import award results"}
+          {busy
+            ? "Importing…"
+            : kind === "pairings"
+              ? "Import pairings"
+              : kind === "results"
+                ? "Import my results"
+                : "Import award results"}
         </button>
         {error && (
           <p className="error-text" role="alert">
@@ -247,7 +293,7 @@ export function ImportForm({
           role="status"
         >
           <p className="notice-title">
-            Imported {result.response.imported} {result.kind === "pairings" ? "pairing" : "award"}
+            Imported {result.response.imported} {nouns[result.kind]}
             {result.response.imported === 1 ? "" : "s"} for {base} {monthLabel(month)}.
           </p>
           {result.response.errors.length > 0 && (

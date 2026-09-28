@@ -171,20 +171,18 @@ describe("previewPool", () => {
     expect(bid.groups[0]!.lines.map((l) => l.text)).toEqual([
       "Start Pairings",
       "Prefer Off Oct 10, 2026 - Oct 12, 2026",
-      "Avoid Pairings If Pairing Length < 3 days",
-      "Avoid Pairings If Pairing Length > 3 days",
-      "Avoid Pairings If Pairing Check-In Time Before < 08:00",
       "Avoid Pairings If Layover In ORD",
+      "Award Pairings If Pairing Length = 3 days If Pairing Check-In Time After > 08:00",
       "Award Pairings",
     ]);
+    // The Award line flags the trips he wants without shrinking the pool: NAVBLUE only removes
+    // pairings on Avoid and Prefer Off lines.
     expect(preview.groups[0]!.lines).toEqual([
       null,
       { matched: 1, poolAfter: 6, unknown: 0 },
       { matched: 1, poolAfter: 5, unknown: 0 },
-      { matched: 1, poolAfter: 4, unknown: 0 },
-      { matched: 1, poolAfter: 3, unknown: 1 },
-      { matched: 1, poolAfter: 2, unknown: 0 },
-      { matched: 2, poolAfter: 2, unknown: 0 },
+      { matched: 1, poolAfter: 5, unknown: 1 },
+      { matched: 5, poolAfter: 5, unknown: 0 },
     ]);
   });
 });

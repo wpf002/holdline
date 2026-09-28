@@ -79,7 +79,27 @@ export type ImportResponse = z.infer<typeof ImportResponse>;
  * Machine-readable meaning of a compiled line, so previews can count the pairings it touches.
  * Vendor-neutral: every compiler attaches the same shapes.
  */
-export const PairingMatch = z.discriminatedUnion("type", [
+export type PairingMatch =
+  | { type: "worksOn"; dates: string[] }
+  | { type: "worksOnWeekday"; days: Weekday[] }
+  | { type: "worksWeekend" }
+  | { type: "lengthBelow"; days: number }
+  | { type: "lengthAbove"; days: number }
+  | { type: "lengthIs"; days: number }
+  | { type: "lengthBetween"; min: number; max: number }
+  | { type: "reportBefore"; time: string }
+  | { type: "releaseAfter"; time: string }
+  | { type: "reportBetween"; from: string; to: string }
+  | { type: "releaseBetween"; from: string; to: string }
+  | { type: "layoverIn"; stations: string[] }
+  | { type: "pairingOn"; number: string; date: string }
+  | { type: "redeye" }
+  | { type: "deadhead" }
+  | { type: "dutyLegsAbove"; legs: number }
+  | { type: "any" }
+  | { type: "all"; of: PairingMatch[] };
+
+export const PairingMatch: z.ZodType<PairingMatch> = z.discriminatedUnion("type", [
   /** Works on any of these dates. */
   z.object({ type: z.literal("worksOn"), dates: z.array(IsoDate) }),
   z.object({ type: z.literal("worksOnWeekday"), days: z.array(Weekday) }),
@@ -100,8 +120,9 @@ export const PairingMatch = z.discriminatedUnion("type", [
   z.object({ type: z.literal("dutyLegsAbove"), legs: z.number().int() }),
   /** Every pairing still in the pool, e.g. NAVBLUE's closing Award Pairings. */
   z.object({ type: z.literal("any") }),
+  /** One line carrying several criteria, like NAVBLUE's chained "If" clauses: all must hold. */
+  z.object({ type: z.literal("all"), of: z.array(z.lazy(() => PairingMatch)) }),
 ]);
-export type PairingMatch = z.infer<typeof PairingMatch>;
 
 /** Counts for one bid line against an imported bid period, like NAVBLUE's Bid Analyzer. */
 export const LinePreview = z.object({

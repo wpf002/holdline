@@ -1,6 +1,7 @@
 import {
   BidPreferences,
   type Award,
+  type BidResults,
   type CompileResponse,
   type CompiledBid,
   type Pairing,
@@ -94,8 +95,20 @@ const airlines: AirlineRecord[] = [
 /** In-memory pairing periods and award results keyed by deployment, base and month. */
 const periods = new Map<string, { importedAt: Date; pairings: Pairing[] }>();
 const awardsByPeriod = new Map<string, Award[]>();
+const resultsByPeriod = new Map<string, BidResults>();
 const store: Store = {
   listAirlines: async () => airlines,
+  saveResults: async (id, base, month, results) => {
+    resultsByPeriod.set(`${id}|${base}|${month}`, results);
+  },
+  loadResults: async (id, base, month) => {
+    const found = [...resultsByPeriod.entries()]
+      .filter(([key]) => key.startsWith(`${id}|${base}|`) && key.split("|")[2]! < month)
+      .sort((a, b) => b[0].localeCompare(a[0]))[0];
+    return found
+      ? { ...found[1], month: found[0].split("|")[2]!, importedAt: "2026-09-20T12:00:00.000Z" }
+      : null;
+  },
   findAirline: async (code) => airlines.find((a) => a.code === code) ?? null,
   loadPairings: async (id, base, month) => periods.get(`${id}|${base}|${month}`) ?? null,
   savePairings: async (id, base, month, pairings) => {
@@ -305,6 +318,57 @@ describe("GET /airlines", () => {
     expect(rows.find((a) => a.code === "UAL")!.deployments[0]).toMatchObject({ compilable: true });
     expect(rows.find((a) => a.code === "RPA")!.deployments[0]).toMatchObject({ compilable: true });
     expect(rows.find((a) => a.code === "XXX")!.deployments[0]).toMatchObject({ compilable: false });
+  });
+});
+
+describe("POST /results/import", () => {
+  const period = { airline: "ENY", crewGroup: "PILOT", base: "DFW", month: "2026-09" };
+  const report = [
+    "   1.    Pairing Bid Group",
+    "   2.      Prefer Off Sunday",
+    " Partially honored",
+    "   3.      Set Condition Maximum Days On In A Row 4",
+    " Honored",
+    " Line Complete No Other Bids Required",
+  ].join("\n");
+
+  it("reads the Reasons report, then /bids/compile hands it back with the next bid", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/results/import",
+      payload: { ...period, data: report },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ imported: 3, errors: [] });
+
+    const compiled = await app.inject({
+      method: "POST",
+      url: "/bids/compile",
+      payload: {
+        ...period,
+        month: "2026-10",
+        daysOff: { daysOfWeek: ["SUN"] },
+        priorities: ["daysOff"],
+      },
+    });
+    const body = compiled.json();
+    expect(body.lastResults).toMatchObject({ month: "2026-09", complete: true });
+    expect(body.lastResults.lines[1]).toEqual({
+      number: 2,
+      text: "Prefer Off Sunday",
+      outcome: "PARTIAL",
+      note: "Partially honored",
+    });
+  });
+
+  it("answers 422 when there are no numbered lines to read", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/results/import",
+      payload: { ...period, data: "Awards\nR1 2026-10-01\n" },
+    });
+    expect(res.statusCode).toBe(422);
+    expect(res.json().error).toBe("no_results");
   });
 });
 

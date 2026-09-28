@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { PreferenceKey } from "./intent.js";
-import { HoldEstimates, LineOdds } from "./award.js";
+import { HoldEstimates, LineOdds, PastResults } from "./award.js";
 import { PairingMatch, PoolPreview } from "./pairing.js";
 
 export const PbsVendor = z.enum(["NAVBLUE", "JEPPESEN", "IBS_ADOPT", "AOS", "UNKNOWN"]);
@@ -33,6 +33,11 @@ export const CompiledLine = z.object({
    * AVOID and PREFER_OFF remove, everything else prefers.
    */
   effect: z.enum(["remove", "keep", "prefer"]).optional(),
+  /**
+   * False when some wording on this line hasn't been seen on a real bid screen yet, so the crew
+   * member should check it before entering. Absent means the compiler doesn't track it.
+   */
+  verified: z.boolean().optional(),
 });
 export type CompiledLine = z.infer<typeof CompiledLine>;
 
@@ -65,5 +70,7 @@ export const CompileResponse = CompiledBid.extend({
   preview: PoolPreview.nullable(),
   holds: HoldEstimates.nullable(),
   odds: LineOdds.nullable(),
+  /** The most recent month whose Results screen was imported, newest first. */
+  lastResults: PastResults.nullable(),
 });
 export type CompileResponse = z.infer<typeof CompileResponse>;

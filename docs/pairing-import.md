@@ -98,3 +98,17 @@ and the leg arrives on a later date than it departs.
 Analyzer. Prefer Off lines remove pairings that work any of the requested days; Avoid lines remove
 matching pairings; Award lines count matches in what's left; the closing Award Pairings line shows
 what remains. Each bid group starts from the full pool.
+
+## Your own results
+
+`POST /results/import` takes the Reasons report from a past month's Results screen, pasted as text:
+
+```json
+{ "airline": "ENY", "crewGroup": "PILOT", "base": "ORD", "month": "2026-09", "data": "…" }
+```
+
+The parser reads each numbered bid line, the outcome under it (`Honored`, `Partially honored`,
+`Not used`, `Maximum number of bidders reached`, anything else kept verbatim), the awarded reserve
+days and the closing `Line Complete No Other Bids Required`. `/bids/compile` returns the newest
+month it has as `lastResults`, and the bid view shows each outcome next to the same line this month
+when the wording hasn't changed. Nothing else from that screen is read or stored.

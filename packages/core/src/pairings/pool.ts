@@ -26,6 +26,11 @@ export function matchPairing(match: PairingMatch, p: Pairing): boolean | null {
   switch (match.type) {
     case "any":
       return true;
+    case "all": {
+      const parts = match.of.map((m) => matchPairing(m, p));
+      if (parts.includes(false)) return false;
+      return parts.includes(null) ? null : true;
+    }
     case "worksOn":
       return workDays(p).some((d) => match.dates.includes(d));
     case "worksOnWeekday":

@@ -82,3 +82,42 @@ export const LineOdds = z.object({
   toReserve: z.number().int().nullable(),
 });
 export type LineOdds = z.infer<typeof LineOdds>;
+
+/**
+ * One numbered line from a NAVBLUE Results screen's Reasons report, and what PBS did with it.
+ * GROUP marks a bid group header, which has no outcome of its own.
+ */
+export const BidResultLine = z.object({
+  number: z.number().int().min(1),
+  text: z.string(),
+  outcome: z.enum(["HONORED", "PARTIAL", "NOT_USED", "FULL", "DENIED", "GROUP", "OTHER"]),
+  /** The report's own wording, when it said something the list above doesn't cover. */
+  note: z.string().nullable(),
+});
+export type BidResultLine = z.infer<typeof BidResultLine>;
+
+/** What a past month's bid actually did, read off the Results screen. */
+export const BidResults = z.object({
+  lines: z.array(BidResultLine),
+  /** Reserve days awarded, when the month came out reserve. */
+  reserveDays: z.array(IsoDate),
+  /** The report's closing "Line Complete No Other Bids Required". */
+  complete: z.boolean(),
+});
+export type BidResults = z.infer<typeof BidResults>;
+
+/** POST /results/import */
+export const ResultsImportRequest = BidIntent.pick({
+  airline: true,
+  crewGroup: true,
+  month: true,
+  base: true,
+}).extend({
+  /** The Reasons report, copied off the Results screen. */
+  data: z.string().min(1),
+});
+export type ResultsImportRequest = z.infer<typeof ResultsImportRequest>;
+
+/** A past month's results, as /bids/compile returns them. */
+export const PastResults = BidResults.extend({ month: z.string(), importedAt: z.string() });
+export type PastResults = z.infer<typeof PastResults>;

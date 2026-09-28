@@ -31,6 +31,7 @@
   --danger-bg: #fdf0ee;
   --warning-bg: #fff6d6;
   --warning-border: #d9a520;
+  --warning-text: #6b4c00;
   --selected-bg: #121417;
   --selected-fg: #ffffff;
   --rank-bg: #ffc20e;
@@ -88,6 +89,7 @@
     --danger-bg: #2a1614;
     --warning-bg: #231c0a;
     --warning-border: #8a6a16;
+    --warning-text: #f0cf72;
     --selected-bg: #ffc20e;
     --selected-fg: #121417;
     --rank-bg: #121417;
@@ -667,6 +669,25 @@ a:hover {
   border: 1px solid var(--border);
   border-radius: var(--radius-inner);
   padding: 0 0 0 var(--s-2);
+}
+
+.chip-check {
+  padding: 0 var(--s-2);
+  border-color: var(--warning-border);
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  font-family: var(--font-display);
+  font-size: var(--t-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.bid-kind {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
 }
 
 .chip .icon-button {

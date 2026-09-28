@@ -132,6 +132,7 @@ describe("NAVBLUE compiler", () => {
       kind: "PREFER_OFF",
       text: "Prefer Off Oct 24, 2026, Oct 23, 2026, Oct 25, 2026",
       uiPath: ["Prefer Off", "Dates List", "Click Oct 24, Oct 23, Oct 25 in that order", "Apply"],
+      verified: true,
       preference: "daysOff",
       match: { type: "worksOn", dates: ["2026-10-24", "2026-10-23", "2026-10-25"] },
     });
@@ -154,16 +155,17 @@ describe("NAVBLUE compiler", () => {
         "Start Pairings",
         "Prefer Off Oct 10, 2026 - Oct 12, 2026",
         "Prefer Off Saturday, Sunday",
-        "Avoid Pairings If Pairing Length < 3 days",
-        "Avoid Pairings If Pairing Length > 4 days",
-        "Avoid Pairings If Pairing Check-In Time Before < 08:00",
+        "Award Pairings If Pairing Length Between 3 days And 4 days If Pairing Check-In Time After > 08:00",
         "Award Pairings",
       ],
     ]);
-    expect(bid.groups[0]!.lines[5]!.uiPath).toEqual([
-      "Avoid Pairings",
+    expect(bid.groups[0]!.lines[3]!.uiPath).toEqual([
+      "Award Pairings",
+      "Pairing Length",
+      "Range",
+      "3 to 4",
       "Pairing Check-In Time",
-      "Before <",
+      "Greater Than >",
       "08:00",
       "Apply",
     ]);
@@ -186,8 +188,8 @@ describe("NAVBLUE compiler", () => {
       [
         "Start Pairings",
         "Avoid Pairings If Layover In ORD, LGA",
-        "Avoid Pairings If Pairing Check-Out Time After > 18:00",
         "Award Pairings If Layover In AUS, SAN",
+        "Award Pairings If Pairing Check-Out Time Before < 18:00",
         "Award Pairings",
       ],
     ]);
@@ -322,13 +324,12 @@ describe("NAVBLUE compiler", () => {
       "Avoid Pairings If Deadhead Legs > 0 legs",
       "Avoid Pairings If Duty Legs > 3 legs",
       // Negatives in priority order.
-      "Avoid Pairings If Pairing Check-In Time Before < 09:00",
       "Prefer Off Oct 10, 2026, Oct 11, 2026",
       "Set Condition Minimum Credit Window",
       "Avoid Pairings If Layover In EWR",
-      "Avoid Pairings If Pairing Length < 2 days",
-      "Avoid Pairings If Pairing Length > 2 days",
-      // Awards in priority order, below every Set Condition.
+      // Awards in priority order, below every Set Condition. The trips the pilot wants are one
+      // line, carried by the highest-priority preference that describes them.
+      "Award Pairings If Pairing Check-In Time After > 09:00 If Pairing Length = 2 days",
       "Award Pairings If Departing on October 5, 2026 If Pairing Number D1234",
       "Award Pairings If Layover In MSY",
       "Award Pairings",
@@ -338,12 +339,12 @@ describe("NAVBLUE compiler", () => {
       "-",
       "-",
       "-",
-      "reportRelease",
       "daysOff",
       "credit",
       "layovers",
-      "pairingLength",
-      "pairingLength",
+      // The merged Award line belongs to report/release: the higher-ranked of the two
+      // preferences that describe the trips he wants.
+      "reportRelease",
       "specificPairings",
       "layovers",
       "-",
@@ -440,10 +441,8 @@ describe("NAVBLUE compiler", () => {
       [
         "Start Pairings",
         "Prefer Off Oct 10, 2026 - Oct 12, 2026",
-        "Avoid Pairings If Pairing Length < 3 days",
-        "Avoid Pairings If Pairing Length > 3 days",
-        "Avoid Pairings If Pairing Check-In Time Before < 08:00",
         "Avoid Pairings If Layover In ORD",
+        "Award Pairings If Pairing Length = 3 days If Pairing Check-In Time After > 08:00",
         "Award Pairings",
       ],
     ]);

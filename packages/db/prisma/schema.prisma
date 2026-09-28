@@ -58,6 +58,7 @@ model PbsDeployment {
   bidPeriods BidPeriod[]
   bids       Bid[]
   awards     AwardRecord[]
+  results    BidResult[]
 
   @@unique([airlineId, crewGroup])
 }
@@ -111,10 +112,26 @@ model BidPeriod {
   base         String
   month        String // YYYY-MM
   importedAt   DateTime      @default(now())
-  // Lines the airline published for this base and seat, from the bid package's summary page.
+  // What the bid package's summary page publishes for this base, seat and month.
   pairingLines Int?
   reserveLines Int?
+  // DeploymentConfig["creditWindows"]: minutes, per month, so they beat anything in the seed.
+  creditWindows Json?
   pairings     Pairing[]
+
+  @@unique([deploymentId, base, month])
+}
+
+/** One past month's Reasons report, as the crew member copied it off the Results screen. */
+model BidResult {
+  id           String        @id @default(cuid())
+  deployment   PbsDeployment @relation(fields: [deploymentId], references: [id])
+  deploymentId String
+  base         String
+  month        String // YYYY-MM
+  importedAt   DateTime      @default(now())
+  // BidResults from @holdline/types: the numbered lines, their outcomes and any reserve days.
+  results      Json
 
   @@unique([deploymentId, base, month])
 }

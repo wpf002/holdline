@@ -79,6 +79,14 @@ export const LABELS = {
   "crit.checkIn": { text: "Pairing Check-In Time", source: "KB_SAMPLE_1", screen: "ENY_SCREEN" },
   "crit.checkOut": { text: "Pairing Check-Out Time", source: "KB_SAMPLE_1" },
   "op.before": { text: "Before <", source: 'KB_SAMPLE_1 ("Pairing Check-In Time Before < 10:00")' },
+  "op.atLeast": { text: ">=", source: "KB_OPERATORS (Greater Than, Less Than, Equal To, Range)" },
+  "op.atMost": { text: "<=", source: "KB_OPERATORS" },
+  "op.between": {
+    text: "Between",
+    source: 'KB_SAMPLE_2 ("Pairing Length Between 1 days And 2 days")',
+  },
+  "op.and": { text: "And", source: "KB_SAMPLE_2" },
+  "op.equals": { text: "=", source: 'KB_SAMPLE_4 ("Pairing Length = 3 days")' },
   "op.after": { text: "After >", source: 'KB_SAMPLE_1 ("Pairing Check-Out Time After > 18:00")' },
   "crit.pairingLength": {
     text: "Pairing Length",
@@ -165,6 +173,8 @@ export const LABELS = {
   "ui.greaterThan": { text: "Greater Than >", source: "ENVOY_AFA p.32" },
   // Inferred from ENVOY_AFA's "Greater Than >" and the KB operators article (35000210180).
   "ui.lessThan": { text: "Less Than <", source: "KB_OPERATORS" },
+  "ui.range": { text: "Range", source: "KB_OPERATORS" },
+  "ui.equalTo": { text: "Equal To =", source: "KB_OPERATORS" },
   "ui.pairingsTab": { text: "Pairings tab", source: "KB_PAIRING_ON_DATE" },
   "ui.addBidsMode": { text: "Red + (Add Bids Mode)", source: "KB_PAIRING_ON_DATE" },
 } as const satisfies Record<string, Label>;
@@ -176,6 +186,11 @@ export interface NavblueLabels {
   (key: LabelKey): string;
   /** Vendor wording for a canonical waiver key, or undefined if this deployment doesn't offer it. */
   waiver(key: string): string | undefined;
+  /**
+   * Whether every label looked up since the previous call was read off a bid screen, and resets.
+   * Line builders resolve their labels and then build the line, so this scopes to one line.
+   */
+  takeVerified(): boolean;
   /** True when every label this bid used was read off a bid screen. */
   allVerified(): boolean;
 }
@@ -190,16 +205,26 @@ export function navblueLabels(
 ): NavblueLabels {
   const table: Record<string, Label> = LABELS;
   let verified = true;
+  let sinceTake = true;
   const use = (key: string, text: string | undefined) => {
     if (text === undefined) return undefined;
     // ui.* labels name buttons and tabs for the entry checklist, not bid text, so they don't
     // decide whether the bid itself is verified.
     if (key.startsWith("ui.")) return text;
-    if (!(key in overrides ? overridesVerified : table[key]?.screen !== undefined)) verified = false;
+    if (!(key in overrides ? overridesVerified : table[key]?.screen !== undefined)) {
+      verified = false;
+      sinceTake = false;
+    }
     return text;
   };
   return Object.assign((key: LabelKey) => use(key, overrides[key] ?? LABELS[key].text)!, {
-    waiver: (key: string) => use(`waive.${key}`, overrides[`waive.${key}`] ?? table[`waive.${key}`]?.text),
+    waiver: (key: string) =>
+      use(`waive.${key}`, overrides[`waive.${key}`] ?? table[`waive.${key}`]?.text),
+    takeVerified: () => {
+      const was = sinceTake;
+      sinceTake = true;
+      return was;
+    },
     allVerified: () => verified,
   });
 }

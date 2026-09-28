@@ -8,6 +8,7 @@ import type {
   LineHold,
   LineOdds,
   LinePreview,
+  PastResults,
 } from "@holdline/types";
 import Link from "next/link";
 import { useState } from "react";
@@ -73,6 +74,52 @@ function holdNote(hold: LineHold, seniority: number | null): string {
         ? ", within your seniority"
         : ", more senior than you";
   return `${monthShort(hold.month)}: held down to #${hold.juniorMost} (${hold.awarded} awarded)${reach}.`;
+}
+
+const OUTCOMES: Record<string, string> = {
+  HONORED: "honored",
+  PARTIAL: "partly honored",
+  NOT_USED: "not used",
+  FULL: "full, too many bidders",
+  DENIED: "denied",
+  OTHER: "",
+  GROUP: "",
+};
+
+/** Last month's outcome for a line whose wording hasn't changed. */
+function outcomeNote(results: PastResults | null, text: string): string | null {
+  const found = results?.lines.find((l) => l.text === text);
+  if (!found) return null;
+  const label = OUTCOMES[found.outcome] || found.note?.toLowerCase();
+  return label ? `${monthShort(results!.month)}: ${label}.` : null;
+}
+
+/** What PBS did with the last bid this crew member entered. */
+function ResultsSummary({ results }: { results: PastResults }) {
+  const counted = results.lines.filter((l) => l.outcome !== "GROUP");
+  const honored = counted.filter((l) => l.outcome === "HONORED").length;
+  const partial = counted.filter((l) => l.outcome === "PARTIAL").length;
+  return (
+    <div className="notice">
+      <p className="notice-title">Last month&apos;s bid</p>
+      <p className="hold-verdict">
+        {monthShort(results.month)}: {honored} of {counted.length} lines honored
+        {partial > 0 && `, ${partial} partly`}.
+        {results.reserveDays.length > 0 &&
+          ` You were awarded ${results.reserveDays.length} reserve days.`}
+      </p>
+      <ul>
+        {counted
+          .filter((l) => l.outcome !== "HONORED")
+          .slice(0, 6)
+          .map((l) => (
+            <li key={l.number}>
+              {l.text} — {OUTCOMES[l.outcome] || l.note?.toLowerCase()}
+            </li>
+          ))}
+      </ul>
+    </div>
+  );
 }
 
 /** What the bid package's own line counts say about holding a line at this seniority. */
@@ -145,6 +192,8 @@ export function CompiledBidView({
   const [copied, setCopied] = useState<string | null>(null);
   const numbers = numberLines(bid);
   const total = numbers.flat().filter((n) => n !== null).length;
+  // Lines whose wording Holdline hasn't seen on a real bid screen. The compiler marks each one.
+  const unchecked = bid.groups.flatMap((g) => g.lines).filter((l) => l.verified === false).length;
 
   async function copy(id: string, text: string) {
     try {
@@ -172,15 +221,20 @@ export function CompiledBidView({
           You changed the form after building this bid. Build it again to update it.
         </p>
       )}
-      {!bid.syntaxVerified ? (
+      {unchecked > 0 ? (
         <div className="notice notice-warning">
-          <p className="notice-title">Check each line against your bid screen</p>
+          <p className="notice-title">
+            {unchecked === 1 ? "One line to check" : `${unchecked} lines to check`} against your bid
+            screen
+          </p>
           <p>
-            Holdline hasn&apos;t compared this wording with{" "}
+            The rest matches{" "}
             {bid.vendor === "UNKNOWN"
-              ? "your airline's bid screen"
-              : `${vendorName(bid.vendor)}'s screen for your airline`}{" "}
-            yet. Menu names and labels can differ.
+              ? "a bid screen Holdline has seen"
+              : `a ${vendorName(bid.vendor)} screen Holdline has seen`}
+            . The {unchecked === 1 ? "one marked" : "ones marked"} <em>check wording</em> below
+            {unchecked === 1 ? " comes" : " come"} from a vendor guide instead, so the menu names
+            could differ.
           </p>
           {bid.warnings.length > 0 && (
             <ul>
@@ -203,6 +257,9 @@ export function CompiledBidView({
       )}
 
       {bid.odds && <LineOddsSummary odds={bid.odds} />}
+      {bid.lastResults && bid.lastResults.lines.length > 0 && (
+        <ResultsSummary results={bid.lastResults} />
+      )}
       {bid.holds && bid.holds.months.length > 0 && <HoldSummary holds={bid.holds} />}
 
       {bid.preview ? (
@@ -281,7 +338,14 @@ export function CompiledBidView({
                     </label>
                   </div>
                   <div className="bid-body">
-                    <p className="bid-kind">{KIND_LABELS[line.kind]}</p>
+                    <p className="bid-kind">
+                      {KIND_LABELS[line.kind]}
+                      {line.verified === false && (
+                        <span className="chip chip-check" title="Holdline hasn't seen this wording on a real bid screen">
+                          check wording
+                        </span>
+                      )}
+                    </p>
                     <p className="bid-text">{line.text}</p>
                     <ol className="bid-steps" aria-label={`Steps for line ${n}`}>
                       {line.uiPath.map((step, si) => (
@@ -289,6 +353,9 @@ export function CompiledBidView({
                       ))}
                     </ol>
                     {counts?.[li] && <p className="pool-note">{poolNote(line, counts[li]!)}</p>}
+                    {outcomeNote(bid.lastResults, line.text) && (
+                      <p className="hold-note">{outcomeNote(bid.lastResults, line.text)}</p>
+                    )}
                     {bid.holds?.groups[gi]?.lines[li]?.map((hold) => (
                       <p key={hold.month} className="hold-note">
                         {holdNote(hold, bid.holds!.seniority)}

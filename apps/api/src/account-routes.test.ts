@@ -149,6 +149,8 @@ const store: Store = {
   listAirlines: async () => airlines,
   findAirline: async (code) => airlines.find((a) => a.code === code) ?? null,
   loadPairings: async () => null,
+  saveResults: async () => {},
+  loadResults: async () => null,
   savePairings: async () => {},
   saveAwards: async () => {},
   loadHistory: async () => [],
