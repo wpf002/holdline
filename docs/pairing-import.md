@@ -19,6 +19,20 @@ skipped; if nothing is usable the API answers 422.
 
 ## Formats
 
+### `fos-pdf` / `fos-text`
+
+An airline's FOS bid package as published (Envoy: `DOC_FLT_PBS_<year>_<mon>_<base>_<seat>.pdf`).
+Send the PDF base64-encoded as `fos-pdf`; the API reads it into text and parses that. `fos-text` is
+the same package already converted, which is what the parser in `core/src/pairings/fos.ts` reads.
+
+One `Pairing` is created per day the block's calendar grid marks, because that's what a crew member
+bids on. Carry-in pairings from the previous month are skipped and counted in `errors`. The package
+summary also gives the bid period's published line counts and credit windows, which Holdline stores
+on the bid period for line odds.
+
+An October ORD captain package: 263 pages, 978 pairings over 1109 operating days, read in about a
+second and a half end to end.
+
 Airline exports (NAVBLUE's Pairings tab, Sabre bid packets) don't have readers yet. Each one gets a
 reader in `packages/core/src/pairings/file.ts` that produces the same `Pairing` shape
 (`packages/types/src/pairing.ts`) once a real sample is in `data/private/`.

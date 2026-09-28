@@ -32,6 +32,7 @@ import { registerAuth, type AuthOptions } from "./auth.js";
 import { registerBilling, type Billing } from "./billing.js";
 import type { Mailer } from "./mailer.js";
 import { ParserError, type Parser } from "./parse.js";
+import { PdfError, pdfText } from "./pdf.js";
 import { registerSavedBids } from "./saved-bids.js";
 
 type CrewGroup = BidIntent["crewGroup"];
@@ -54,6 +55,9 @@ export interface AirlineRecord {
 export interface PairingPeriod {
   importedAt: Date;
   pairings: Pairing[];
+  /** Lines published for this base and seat, from the bid package. */
+  pairingLines?: number | null;
+  reserveLines?: number | null;
 }
 
 /** What the routes read and write. store.ts backs this with Prisma; tests pass fixtures. */
@@ -68,6 +72,8 @@ export interface Store {
     base: string,
     month: string,
     pairings: Pairing[],
+    /** Lines the airline published for this bid period, when the file says. */
+    lines?: { pairingLines?: number; reserveLines?: number },
   ): Promise<void>;
   /** Replaces the award results for one deployment, base and month. */
   saveAwards(deploymentId: string, base: string, month: string, awards: Award[]): Promise<void>;
@@ -254,9 +260,28 @@ export async function buildApp(
     const found = await findDeployment(request.airline, request.crewGroup, reply);
     if (!found) return reply;
 
-    const { pairings, errors } = parsePairingFile(request.format, request.data);
+    // A bid package arrives as the PDF the airline published; the parsers only read text.
+    let text = request.data;
+    let format = request.format;
+    if (format === "fos-pdf") {
+      try {
+        text = await pdfText(request.data);
+        format = "fos-text";
+      } catch (err) {
+        const message = err instanceof PdfError ? err.message : "The PDF couldn't be read.";
+        return reply.code(422).send({ error: "no_pairings", errors: [{ line: 0, message }] });
+      }
+    }
+
+    const { pairings, errors, summary } = parsePairingFile(format, text, request.month);
     if (pairings.length === 0) return reply.code(422).send({ error: "no_pairings", errors });
-    await store.savePairings(found.deployment.id, request.base, request.month, pairings);
+    await store.savePairings(
+      found.deployment.id,
+      request.base,
+      request.month,
+      pairings,
+      summary,
+    );
     return { imported: pairings.length, errors } satisfies ImportResponse;
   });
 

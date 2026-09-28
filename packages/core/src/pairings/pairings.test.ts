@@ -17,7 +17,7 @@ describe("parsePairingFile: holdline-csv", () => {
       '"10:05","D104","2026-10-20",4,10:00,18:10,"SAT MSY",',
       "10:05,D104,2026-10-20,4,10:00,18:10,,",
     ].join("\r\n");
-    const { pairings, errors } = parsePairingFile("holdline-csv", csv);
+    const { pairings, errors } = parsePairingFile("holdline-csv", csv, "2026-10");
 
     expect(pairings.map((p) => p.number)).toEqual(["D101", "D102", "D104"]);
     expect(pairings[0]).toEqual({
@@ -38,7 +38,7 @@ describe("parsePairingFile: holdline-csv", () => {
   });
 
   it("names missing required columns", () => {
-    const { pairings, errors } = parsePairingFile("holdline-csv", "pairing,days\nD1,3\n");
+    const { pairings, errors } = parsePairingFile("holdline-csv", "pairing,days\nD1,3\n", "2026-10");
     expect(pairings).toEqual([]);
     expect(errors[0]!.message).toMatch(/^Missing column\(s\): start_date, credit\./);
   });
@@ -80,7 +80,7 @@ describe("parsePairingFile: holdline-json", () => {
         { number: "D202", startDate: "2026-10-40", days: 2, creditMinutes: 600 },
       ],
     });
-    const { pairings, errors } = parsePairingFile("holdline-json", json);
+    const { pairings, errors } = parsePairingFile("holdline-json", json, "2026-10");
     expect(pairings).toHaveLength(1);
     expect(pairings[0]!.layovers).toEqual(["MSP"]);
     expect(errors).toHaveLength(1);
@@ -89,7 +89,7 @@ describe("parsePairingFile: holdline-json", () => {
   });
 
   it("rejects text that isn't JSON", () => {
-    expect(parsePairingFile("holdline-json", "nope").errors[0]!.message).toMatch(/^Not valid JSON/);
+    expect(parsePairingFile("holdline-json", "nope", "2026-10").errors[0]!.message).toMatch(/^Not valid JSON/);
   });
 });
 

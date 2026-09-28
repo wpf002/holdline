@@ -11,13 +11,24 @@ type Crew = BidIntent["crewGroup"];
 type Kind = "pairings" | "awards";
 
 const FORMATS: { value: PairingFormat; label: string }[] = [
+  { value: "fos-pdf", label: "Bid package" },
   { value: "holdline-csv", label: "CSV" },
   { value: "holdline-json", label: "JSON" },
 ];
 
+/** Reads the file as base64 without the data: prefix, for formats the API reads as bytes. */
+function base64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("That file couldn't be read."));
+    reader.onload = () => resolve(String(reader.result).split(",", 2)[1] ?? "");
+    reader.readAsDataURL(file);
+  });
+}
+
 const FILE_HINTS: Record<Kind, string> = {
   pairings:
-    "Holdline reads its own CSV or JSON format for now. CSV columns: pairing, start_date (YYYY-MM-DD), days, credit (H:MM), and optionally tafb, report and release (HH:MM) and layovers (codes separated by spaces). Other columns are ignored and never stored.",
+    "Your airline's bid package PDF, as published. Holdline also reads its own CSV or JSON: columns pairing, start_date (YYYY-MM-DD), days, credit (H:MM), and optionally tafb, report and release (HH:MM) and layovers (codes separated by spaces). Other columns are ignored and never stored.",
   awards:
     "A CSV of last month's award results, one row per awarded pairing or per line. Columns: seniority, and pairing with start_date, line_credit (H:MM) or reserve (Y/N). Names, employee numbers and every other column are ignored and never stored. Import that month's pairings too, so Holdline can match awards to trips.",
 };
@@ -61,8 +72,10 @@ export function ImportForm({
 
   function chooseFile(next: File | null) {
     setFile(next);
-    if (next?.name.toLowerCase().endsWith(".json")) setFormat("holdline-json");
-    else if (next?.name.toLowerCase().endsWith(".csv")) setFormat("holdline-csv");
+    const name = next?.name.toLowerCase() ?? "";
+    if (name.endsWith(".pdf")) setFormat("fos-pdf");
+    else if (name.endsWith(".json")) setFormat("holdline-json");
+    else if (name.endsWith(".csv")) setFormat("holdline-csv");
   }
 
   async function upload() {
@@ -78,7 +91,7 @@ export function ImportForm({
     setError(null);
     setResult(null);
     const period = { airline, crewGroup, base: base.toUpperCase(), month };
-    const data = await file!.text();
+    const data = format === "fos-pdf" ? await base64(file!) : await file!.text();
     const res =
       kind === "pairings"
         ? await importPairings(apiUrl, { ...period, format, data })
@@ -195,7 +208,9 @@ export function ImportForm({
               className="input"
               type="file"
               accept={
-                kind === "pairings" ? ".csv,.json,text/csv,application/json" : ".csv,text/csv"
+                kind === "pairings"
+                  ? ".pdf,.csv,.json,application/pdf,text/csv,application/json"
+                  : ".csv,text/csv"
               }
               onChange={(e) => chooseFile(e.target.files?.[0] ?? null)}
             />

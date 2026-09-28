@@ -1,5 +1,6 @@
 import { Pairing, type ImportError, type PairingFormat } from "@holdline/types";
 import { readCsv } from "./csv.js";
+import { parseFosText, type FosSummary } from "./fos.js";
 
 /**
  * Pairing files -> Holdline pairings. Each format gets a reader; airline exports (NAVBLUE, Sabre
@@ -116,14 +117,29 @@ function readHoldlineJson(text: string): ParsedPairings {
   return { pairings, errors };
 }
 
-const READERS: Record<PairingFormat, (text: string) => ParsedPairings> = {
+const READERS: Record<PairingFormat, (text: string, month: string) => ParsedPairings> = {
   "holdline-csv": readHoldlineCsv,
   "holdline-json": readHoldlineJson,
+  "fos-text": parseFosText,
+  // The API turns the PDF into text before calling this; core stays free of PDF readers.
+  "fos-pdf": () => ({
+    pairings: [],
+    errors: [{ line: 0, message: "Read the PDF into text before parsing it." }],
+  }),
 };
 
-/** Parses, fills layovers from legs when the file only has legs, and drops duplicate pairings. */
-export function parsePairingFile(format: PairingFormat, text: string): ParsedPairings {
-  const { pairings, errors } = READERS[format](text);
+/**
+ * Parses, fills layovers from legs when the file only has legs, and drops duplicate pairings.
+ * `summary` is what the file says about the bid period itself; only FOS packages carry one.
+ */
+export function parsePairingFile(
+  format: PairingFormat,
+  text: string,
+  month: string,
+): ParsedPairings & { summary?: FosSummary } {
+  const read = READERS[format](text, month);
+  const { pairings, errors } = read;
+  const summary = "summary" in read ? (read.summary as FosSummary) : undefined;
   const seen = new Set<string>();
   const unique: Pairing[] = [];
   for (const p of pairings) {
@@ -138,5 +154,5 @@ export function parsePairingFile(format: PairingFormat, text: string): ParsedPai
     seen.add(key);
     unique.push(p.layovers.length || !p.legs.length ? p : { ...p, layovers: layoversFromLegs(p) });
   }
-  return { pairings: unique, errors };
+  return { pairings: unique, errors, summary };
 }

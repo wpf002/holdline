@@ -38,7 +38,12 @@ export function prismaStore(db: Db): Store {
         include: { pairings: { orderBy: [{ startDate: "asc" }, { number: "asc" }] } },
       });
       if (!found) return null;
-      return { importedAt: found.importedAt, pairings: found.pairings.map(toPairing) };
+      return {
+        importedAt: found.importedAt,
+        pairings: found.pairings.map(toPairing),
+        pairingLines: found.pairingLines,
+        reserveLines: found.reserveLines,
+      };
     },
 
     async saveAwards(deploymentId, base, month, awards) {
@@ -93,12 +98,16 @@ export function prismaStore(db: Db): Store {
       );
     },
 
-    async savePairings(deploymentId, base, month, pairings) {
+    async savePairings(deploymentId, base, month, pairings, lines) {
       await db.$transaction(async (tx) => {
+        const counts = {
+          pairingLines: lines?.pairingLines ?? null,
+          reserveLines: lines?.reserveLines ?? null,
+        };
         const { id } = await tx.bidPeriod.upsert({
           where: period(deploymentId, base, month),
-          update: { importedAt: new Date() },
-          create: { deploymentId, base, month },
+          update: { importedAt: new Date(), ...counts },
+          create: { deploymentId, base, month, ...counts },
         });
         await tx.pairing.deleteMany({ where: { bidPeriodId: id } });
         await tx.pairing.createMany({

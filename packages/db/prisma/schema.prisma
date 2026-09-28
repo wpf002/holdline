@@ -111,6 +111,9 @@ model BidPeriod {
   base         String
   month        String // YYYY-MM
   importedAt   DateTime      @default(now())
+  // Lines the airline published for this base and seat, from the bid package's summary page.
+  pairingLines Int?
+  reserveLines Int?
   pairings     Pairing[]
 
   @@unique([deploymentId, base, month])

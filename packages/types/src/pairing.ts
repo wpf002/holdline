@@ -46,7 +46,12 @@ export const Pairing = z.object({
 });
 export type Pairing = z.infer<typeof Pairing>;
 
-export const PairingFormat = z.enum(["holdline-csv", "holdline-json"]);
+/**
+ * holdline-csv / holdline-json are Holdline's own shapes (docs/pairing-import.md). fos-pdf is an
+ * airline's FOS bid package as published, base64-encoded; fos-text is that package already turned
+ * into text, which is what the parser reads.
+ */
+export const PairingFormat = z.enum(["holdline-csv", "holdline-json", "fos-pdf", "fos-text"]);
 export type PairingFormat = z.infer<typeof PairingFormat>;
 
 /** POST /bid-periods/import */
