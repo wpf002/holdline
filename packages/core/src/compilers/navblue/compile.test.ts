@@ -17,6 +17,39 @@ const envoyFaWindows: DeploymentConfig = {
   },
 };
 
+/** Wording read off an Envoy ORD captain's own bid screen; see seed.ts. */
+const envoyPilot: DeploymentConfig = {
+  labelsVerified: true,
+  labels: { "group.pairings": "Pairing Bid Group", "crit.layoverIn": "Any Layover In" },
+};
+
+describe("syntaxVerified", () => {
+  const daysOff = intent({ daysOff: { dates: ["2026-10-24"] }, priorities: ["daysOff"] });
+
+  it("is true when every line came off a bid screen", () => {
+    const bid = compile(daysOff, "NAVBLUE", envoyPilot);
+    expect(texts(bid)).toEqual([
+      ["Pairing Bid Group", "Prefer Off Oct 24, 2026", "Award Pairings"],
+    ]);
+    expect(bid.syntaxVerified).toBe(true);
+  });
+
+  it("is false when the airline's wording hasn't been checked against one", () => {
+    expect(compile(daysOff, "NAVBLUE", { labels: envoyPilot.labels }).syntaxVerified).toBe(false);
+    expect(compile(daysOff, "NAVBLUE").syntaxVerified).toBe(false);
+  });
+
+  it("is false when a line Holdline writes isn't on that screen yet", () => {
+    // Avoid Pairings only appears in guides so far, so any bid using one stays unverified.
+    const withAvoid = intent({
+      daysOff: { dates: ["2026-10-24"] },
+      pairings: { avoidRedeyes: true },
+      priorities: ["daysOff"],
+    });
+    expect(compile(withAvoid, "NAVBLUE", envoyPilot).syntaxVerified).toBe(false);
+  });
+});
+
 describe("NAVBLUE compiler", () => {
   it("days off only: one Prefer Off line, dates in priority order", () => {
     const bid = compile(

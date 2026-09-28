@@ -19,6 +19,11 @@ export const DeploymentConfig = z.object({
   /** Overrides for the vendor label table, keyed like core/src/compilers/<vendor>/labels.ts. */
   labels: z.record(z.string(), z.string()).optional(),
   /**
+   * True only when `labels` was copied off this airline's own bid screen, with the screenshot or
+   * guide in sourceUrl. It lets a compiled bid claim syntaxVerified; never set it from a guess.
+   */
+  labelsVerified: z.boolean().optional(),
+  /**
    * Credit windows the airline publishes, in minutes. NAVBLUE doesn't take hours; the bidder picks a
    * window with Set Condition Minimum/Maximum Credit Window, and no condition means the normal window.
    */

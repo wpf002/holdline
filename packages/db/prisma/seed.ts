@@ -70,6 +70,8 @@ const ENVOY_AFA = "https://afaeagle.com/system/files/2025-08/pbs_generic_basic_b
 const AC_GUIDE =
   "https://accomponent.ca/wp-content/uploads/2021/02/PBS_Bidder_Guide_FINAL_Eng-Apr-2015.pdf";
 const AOS_DOCS = "https://www.swprefbid.com/aospbs/online_docs_SKYW.html";
+const ENY_PACKAGE =
+  "https://myenvoyair.com/wp-content/uploads/2026/09/DOC_FLT_PBS_2026_OCT_ORD_CA.pdf";
 const APFA_GUIDE =
   "https://www.apfa.org/wp-content/uploads/2019/01/Flight-Attendant-PBS-Guide_10JAN19.pdf";
 
@@ -84,6 +86,30 @@ const configs: Record<string, { sourceUrl: string; config: Prisma.InputJsonObjec
         minimum: { min: 65 * 60, max: 91 * 60 },
         normal: { min: 75 * 60, max: 91 * 60 },
         maximum: { min: 91 * 60, max: 110 * 60 },
+      },
+    },
+  },
+  // Read off an ORD captain's own October 2026 bid screen (screenshots, 2026-09-28) plus that
+  // month's ORD CA bid package. Envoy names the groups after the screen, drops "Before"/"After"
+  // from the operators, and writes Any Layover In / Any Duty Legs / Legs. Credit windows are
+  // per base, seat and month: these are ORD CA October 2026 and need re-reading each package.
+  "ENY:PILOT": {
+    sourceUrl: ENY_PACKAGE,
+    config: {
+      labelsVerified: true,
+      labels: {
+        "group.pairings": "Pairing Bid Group",
+        "group.reserve": "Reserve Bid Group",
+        "crit.layoverIn": "Any Layover In",
+        "crit.dutyLegs": "Any Duty Legs",
+        "unit.legs": "Legs",
+        "op.before": "<",
+        "op.after": ">",
+      },
+      creditWindows: {
+        minimum: { min: 70 * 60 + 1, max: 80 * 60 + 1 },
+        normal: { min: 76 * 60 + 1, max: 90 * 60 + 1 },
+        maximum: { min: 86 * 60 + 1, max: 100 * 60 + 1 },
       },
     },
   },

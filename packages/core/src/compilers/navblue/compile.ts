@@ -64,7 +64,12 @@ const BUILDERS: Record<PreferenceKey, (c: Ctx) => Part> = {
 
 export function compileNavblue(intent: BidIntent, config: DeploymentConfig = {}): CompiledBid {
   const warnings: string[] = [];
-  const c: Ctx = { intent, config, L: navblueLabels(config.labels), warn: (m) => warnings.push(m) };
+  const c: Ctx = {
+    intent,
+    config,
+    L: navblueLabels(config.labels, config.labelsVerified),
+    warn: (m) => warnings.push(m),
+  };
   const reserve = intent.lineType === "RESERVE";
 
   const built = new Map<PreferenceKey, Part>();
@@ -115,7 +120,14 @@ export function compileNavblue(intent: BidIntent, config: DeploymentConfig = {})
     c.warn(`This bid has ${numbered} lines; ${intent.airline} accepts ${config.maxBidLines}.`);
   }
 
-  return { vendor: "NAVBLUE", dialect: "ORDERED_GROUPS", groups, warnings, syntaxVerified: false };
+  return {
+    vendor: "NAVBLUE",
+    dialect: "ORDERED_GROUPS",
+    groups,
+    warnings,
+    // True only when every label this bid used came off a real bid screen (see labels.ts).
+    syntaxVerified: c.L.allVerified(),
+  };
 }
 
 // ── Line helpers ──────────────────────────────────────────────────────

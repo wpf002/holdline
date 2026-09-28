@@ -1,9 +1,10 @@
 /**
  * Every piece of NAVBLUE N-PBS wording Holdline emits, with where it came from.
  *
- * None of this has been compared against a live bid screen for the first user's airline yet, so the
- * compiler reports syntaxVerified: false. Airline-specific wording goes in PbsDeployment.config.labels
- * under the same keys (see NavblueLabels).
+ * A label carries `screen` when it was read off a real bid screen, character for character. A bid
+ * reports syntaxVerified only when every label it used has one (or came from this airline's own
+ * verified config.labels), so adding wording from a guide alone can't make a bid claim to be
+ * verified. Airline-specific wording goes in PbsDeployment.config.labels under the same keys.
  */
 
 const KB = "https://n-crewplanning.support.navblue.aero/support/solutions/articles";
@@ -28,23 +29,41 @@ export const SOURCES = {
     "https://accomponent.ca/wp-content/uploads/2021/02/PBS_Bidder_Guide_FINAL_Eng-Apr-2015.pdf (Air Canada PBS Bidder's Guide, 2015-04-10)",
   ENVOY_AFA:
     "https://afaeagle.com/system/files/2025-08/pbs_generic_basic_bid.pdf (Envoy AFA PBS Generic Basic Bid, 8/2025; Envoy NAVBLUE screenshots)",
+  ENY_SCREEN:
+    "Screenshots of an Envoy ORD captain's Bids and Results screens for the October 2026 bid period (ny.pbs.vmc.navblue.cloud), sent by the first user 2026-09-28",
 } as const;
 
-/** `source` names SOURCES keys, plus page numbers or the verbatim example the wording was taken from. */
-type Label = { text: string; source: string };
+/**
+ * `source` names SOURCES keys, plus page numbers or the verbatim example the wording came from.
+ * `screen` names the SOURCES key of a bid screen the text was read off; only those count as
+ * verified. Envoy words some of these differently, and those overrides sit in its config.labels.
+ */
+type Label = { text: string; source: string; screen?: keyof typeof SOURCES };
 
 export const LABELS = {
   // ── Groups ───────────────────────────────────────────────────────────
   "group.pairings": { text: "Start Pairings", source: "KB_SAMPLE_1; AC_GUIDE p.4-11" },
-  "group.pairings.end": { text: "Award Pairings", source: "KB_PROCESSING; ENVOY_AFA p.34" },
+  "group.pairings.end": {
+    text: "Award Pairings",
+    source: "KB_PROCESSING; ENVOY_AFA p.34",
+    screen: "ENY_SCREEN",
+  },
   "group.reserveJump": { text: "Start Reserve Bid", source: "AC_GUIDE p.4-11, 5-48; KB_SAMPLE_2" },
   "group.reserve": { text: "Start Reserve", source: "AC_GUIDE p.4-11; KB_SAMPLE_2" },
 
   // ── Line types ───────────────────────────────────────────────────────
-  "line.preferOff": { text: "Prefer Off", source: "KB_SAMPLE_1; AC_GUIDE p.5-11" },
+  "line.preferOff": {
+    text: "Prefer Off",
+    source: "KB_SAMPLE_1; AC_GUIDE p.5-11",
+    screen: "ENY_SCREEN",
+  },
   "line.avoid": { text: "Avoid Pairings If", source: "KB_SAMPLE_1" },
-  "line.award": { text: "Award Pairings If", source: "KB_SAMPLE_1; ENVOY_AFA p.34" },
-  "line.set": { text: "Set Condition", source: "ENVOY_AFA p.34" },
+  "line.award": {
+    text: "Award Pairings If",
+    source: "KB_SAMPLE_1; ENVOY_AFA p.34",
+    screen: "ENY_SCREEN",
+  },
+  "line.set": { text: "Set Condition", source: "ENVOY_AFA p.34", screen: "ENY_SCREEN" },
   "line.waive": { text: "Waive", source: "ENVOY_AFA p.34" },
 
   // ── Prefer Off ───────────────────────────────────────────────────────
@@ -57,7 +76,7 @@ export const LABELS = {
     text: "Layover In",
     source: 'KB_SAMPLE_1; KB_SAMPLE_2 ("Layover In AUA, SXM")',
   },
-  "crit.checkIn": { text: "Pairing Check-In Time", source: "KB_SAMPLE_1" },
+  "crit.checkIn": { text: "Pairing Check-In Time", source: "KB_SAMPLE_1", screen: "ENY_SCREEN" },
   "crit.checkOut": { text: "Pairing Check-Out Time", source: "KB_SAMPLE_1" },
   "op.before": { text: "Before <", source: 'KB_SAMPLE_1 ("Pairing Check-In Time Before < 10:00")' },
   "op.after": { text: "After >", source: 'KB_SAMPLE_1 ("Pairing Check-Out Time After > 18:00")' },
@@ -91,10 +110,15 @@ export const LABELS = {
     source: "ENVOY_AFA p.31, 34; KB_MIN_CREDIT",
   },
   "set.maxCreditWindow": { text: "Maximum Credit Window", source: "KB_MAX_CREDIT; KB_CATALOG" },
-  "set.maxDaysOn": { text: "Maximum Days On In A Row", source: "KB_CATALOG" },
+  "set.maxDaysOn": {
+    text: "Maximum Days On In A Row",
+    source: "KB_CATALOG",
+    screen: "ENY_SCREEN",
+  },
   "set.minDaysOffInARow": {
     text: "Minimum Days Off In A Row",
     source: 'KB_MIN_DAYS_OFF ("Set Condition Minimum Days Off In A Row 5")',
+    screen: "ENY_SCREEN",
   },
 
   // ── Waive (keyed by canonical WAIVER_KEYS) ───────────────────────────
@@ -111,7 +135,11 @@ export const LABELS = {
   "ui.bids": { text: "Bids tab", source: "ENVOY_AFA p.24, 28" },
   "ui.bidType": { text: "Current or Default tab", source: "ENVOY_AFA p.25" },
   "ui.addGroup": { text: "Add Bid Group", source: "ENVOY_AFA p.28" },
-  "ui.pairingGroup": { text: "Pairing Bid Group", source: "ENVOY_AFA p.28" },
+  "ui.pairingGroup": {
+    text: "Pairing Bid Group",
+    source: "ENVOY_AFA p.28",
+    screen: "ENY_SCREEN",
+  },
   "ui.apply": { text: "Apply", source: "ENVOY_AFA p.28-33" },
   "ui.preferOff": { text: "Prefer Off", source: "ENVOY_AFA p.31" },
   "ui.avoid": { text: "Avoid Pairings", source: "ENVOY_AFA p.31" },
@@ -137,11 +165,30 @@ export interface NavblueLabels {
   (key: LabelKey): string;
   /** Vendor wording for a canonical waiver key, or undefined if this deployment doesn't offer it. */
   waiver(key: string): string | undefined;
+  /** True when every label this bid used was read off a bid screen. */
+  allVerified(): boolean;
 }
 
-export function navblueLabels(overrides: Record<string, string> = {}): NavblueLabels {
+/**
+ * @param overrides this airline's config.labels
+ * @param overridesVerified whether those overrides came off this airline's own screen
+ */
+export function navblueLabels(
+  overrides: Record<string, string> = {},
+  overridesVerified = false,
+): NavblueLabels {
   const table: Record<string, Label> = LABELS;
-  return Object.assign((key: LabelKey) => overrides[key] ?? LABELS[key].text, {
-    waiver: (key: string) => overrides[`waive.${key}`] ?? table[`waive.${key}`]?.text,
+  let verified = true;
+  const use = (key: string, text: string | undefined) => {
+    if (text === undefined) return undefined;
+    // ui.* labels name buttons and tabs for the entry checklist, not bid text, so they don't
+    // decide whether the bid itself is verified.
+    if (key.startsWith("ui.")) return text;
+    if (!(key in overrides ? overridesVerified : table[key]?.screen !== undefined)) verified = false;
+    return text;
+  };
+  return Object.assign((key: LabelKey) => use(key, overrides[key] ?? LABELS[key].text)!, {
+    waiver: (key: string) => use(`waive.${key}`, overrides[`waive.${key}`] ?? table[`waive.${key}`]?.text),
+    allVerified: () => verified,
   });
 }
