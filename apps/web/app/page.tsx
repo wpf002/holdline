@@ -17,11 +17,12 @@ export default async function Home() {
   return (
     <main className="page">
       <div className="hero">
-        <p className="eyebrow">PBS bid builder</p>
-        <h1>Build next month&apos;s PBS bid</h1>
+        <p className="eyebrow">Monthly bidding</p>
+        <h1>Build next month&apos;s bid without learning PBS</h1>
         <p className="lede">
-          Holdline turns your days off, trips and layovers into your airline&apos;s bid language, in
-          the order PBS gives things up, with the clicks to enter each line.
+          Pick the days you want off, rank what matters most, and Holdline writes your bid lines in
+          order with the clicks for each one. You type them in yourself. Holdline never signs in to
+          your airline.
         </p>
       </div>
       {airlines ? (

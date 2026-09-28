@@ -2,7 +2,7 @@
 
 Holdline turns a crew member's plain-English schedule wishes into a correct, ordered PBS bid for their airline's bidding system. It's the QuickBid experience (say what you want, get it sorted) rebuilt for Preferential Bidding Systems, where there are no lines to rank and the bid has to be written in the vendor's rule language.
 
-**Status:** build steps 1–8. The web form builds a `BidIntent`; `POST /bids/compile` writes it for NAVBLUE (one group, relaxed by Denial Mode), Jeppesen (one bid group per relaxation step) or layered PBS (American and SkyWest AOS, one layer per step), and turns priorities into points for IBS / AD OPT (weighted PBS). Every compiler reports `syntaxVerified: false` until its wording is checked against a real bid screen; Jeppesen only emits statements with a documented example and warns on the rest. `POST /bids/parse` pre-fills the form from plain English once `ANTHROPIC_API_KEY` is set (503 without it). `POST /bid-periods/import` loads a month of pairings in Holdline's CSV or JSON format ([docs/pairing-import.md](docs/pairing-import.md)) so each line shows how many pairings it removes. `POST /awards/import` loads past award results ([docs/award-import.md](docs/award-import.md)); with your seniority, the bid shows how far down lines and matching pairings went. Signing in (magic link) lets crew save bids and keep a default bid; a Stripe subscription is wired up but no feature is behind it yet.
+**Status:** build steps 1–8. The home page opens on a short form (where you bid, days off, trip length, start late or finish early) that builds a working bid; "Change anything" opens the full form with the draft intact. Either way the web form builds a `BidIntent`; `POST /bids/compile` writes it for NAVBLUE (one group, relaxed by Denial Mode), Jeppesen (one bid group per relaxation step) or layered PBS (American and SkyWest AOS, one layer per step), and turns priorities into points for IBS / AD OPT (weighted PBS). Every compiler reports `syntaxVerified: false` until its wording is checked against a real bid screen; Jeppesen only emits statements with a documented example and warns on the rest. `POST /bids/parse` pre-fills the form from plain English once `ANTHROPIC_API_KEY` is set (503 without it). `POST /bid-periods/import` loads a month of pairings from an airline's FOS bid package PDF, or Holdline's own CSV or JSON ([docs/pairing-import.md](docs/pairing-import.md)), so each line shows how many pairings it removes, and the package's line counts answer whether a line is holdable at that seniority. `POST /results/import` reads a past month's Reasons report so each line shows what PBS did with it last time. `POST /awards/import` loads past award results ([docs/award-import.md](docs/award-import.md)); with your seniority, the bid shows how far down lines and matching pairings went. Signing in (magic link) lets crew save bids and keep a default bid; a Stripe subscription is wired up but no feature is behind it yet.
 
 ## Stack
 
@@ -48,7 +48,7 @@ curl localhost:4000/airlines    # real rows from Postgres
 ## Project structure
 
 ```
-apps/web          Next.js UI: preference wizard, bid preview, entry checklist
+apps/web          Next.js UI: short form and full form, bid preview, entry checklist
 apps/api          Fastify: /airlines, /bids/compile, /bids/parse, /bid-periods/import
 packages/types    zod schemas: BidIntent (canonical preferences), CompiledBid (vendor output)
 packages/core     Compilers BidIntent -> CompiledBid, one per vendor dialect. Pure, no I/O

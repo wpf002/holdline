@@ -6,7 +6,7 @@ import { useAccount } from "../lib/use-account";
 
 const LINKS = [
   { href: "/", label: "Build a bid" },
-  { href: "/pairings", label: "Import data" },
+  { href: "/pairings", label: "Bid package" },
 ];
 
 export function SiteNav({ apiUrl }: { apiUrl: string }) {
