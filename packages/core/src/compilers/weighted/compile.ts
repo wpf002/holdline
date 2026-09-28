@@ -153,7 +153,7 @@ export function compileWeighted(intent: BidIntent, config: DeploymentConfig = {}
 
   if (intent.lineType === "EITHER") {
     c.warn(
-      "This is the pairing half of your bid only. Holdline can't write a IBS reserve group yet, so add yours by hand below it.",
+      "This is the pairing half of your bid only. Holdline can't write an IBS reserve group yet, so add yours by hand below it.",
     );
   }
   if (intent.lineType === "RESERVE") {

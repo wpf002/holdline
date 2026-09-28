@@ -90,7 +90,7 @@ describe("parseFosText", () => {
   it("skips the previous month's carry-in pairings and says how many", () => {
     expect(pairings.some((p) => p.number === "13999")).toBe(false);
     expect(errors).toEqual([
-      { line: 0, message: "Skipped 1 carry-in pairings from the previous month." },
+      { line: 0, message: "Skipped 1 carry-in pairing from the previous month." },
     ]);
   });
 

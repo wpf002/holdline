@@ -138,7 +138,10 @@ export function parseFosSummary(text: string): FosSummary {
  * @param month the bid month as YYYY-MM. Blocks whose header says they're carry-in pairings from
  * the previous month are skipped: they start before the bid period.
  */
-export function parseFosText(text: string, month: string): ParsedPairings & { summary: FosSummary } {
+export function parseFosText(
+  text: string,
+  month: string,
+): ParsedPairings & { summary: FosSummary } {
   const pairings: Pairing[] = [];
   const errors: ImportError[] = [];
   const blocks = text.split(BLOCK);
@@ -205,7 +208,10 @@ export function parseFosText(text: string, month: string): ParsedPairings & { su
 
     const dates = operatingDays(block);
     if (!dates.length) {
-      errors.push({ line: index, message: `Pairing ${number}: no operating dates in the calendar` });
+      errors.push({
+        line: index,
+        message: `Pairing ${number}: no operating dates in the calendar`,
+      });
       continue;
     }
 
@@ -245,7 +251,7 @@ export function parseFosText(text: string, month: string): ParsedPairings & { su
   if (carryIn) {
     errors.push({
       line: 0,
-      message: `Skipped ${carryIn} carry-in pairings from the previous month.`,
+      message: `Skipped ${carryIn} carry-in pairing${carryIn === 1 ? "" : "s"} from the previous month.`,
     });
   }
   return { pairings, errors, summary: parseFosSummary(text) };

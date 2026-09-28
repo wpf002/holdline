@@ -328,8 +328,8 @@ export function BidBuilder({
           </p>
           {draft.lineType === "EITHER" && (
             <p className="hint">
-              Either writes both halves: the pairings you want, then the reserve group you&apos;d
-              fall to. Bid it when you&apos;re near the line and reserve cutoff.
+              Either writes both halves. The pairings you want come first, then the reserve group
+              you&apos;d fall to. Bid it when you&apos;re near the line and reserve cutoff.
             </p>
           )}
           {draft.lineType !== "LINEHOLDER" && (
@@ -482,8 +482,9 @@ export function BidBuilder({
               <span>No deadheads</span>
             </label>
             <p className="hint">
-              Red-eyes, deadheads and legs per day are hard limits: Holdline keeps them even when
-              PBS has to drop your other wishes.
+              Trip length and report times ask PBS for the trips you want. Red-eyes, deadheads and
+              legs per day are hard limits, so Holdline keeps them even when PBS has to drop your
+              other wishes.
             </p>
           </div>
         </Section>

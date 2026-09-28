@@ -114,7 +114,7 @@ function ResultsSummary({ results }: { results: PastResults }) {
           .slice(0, 6)
           .map((l) => (
             <li key={l.number}>
-              {l.text} — {OUTCOMES[l.outcome] || l.note?.toLowerCase()}
+              {l.text}: {OUTCOMES[l.outcome] || l.note?.toLowerCase()}
             </li>
           ))}
       </ul>
@@ -140,7 +140,7 @@ function LineOddsSummary({ odds }: { odds: LineOdds }) {
       {verdict && <p className="hold-verdict">{verdict}</p>}
       <p>
         {monthShort(odds.month)} has {lines} for your base and seat. PBS awards in seniority order,
-        so that cutoff decides whether you hold a line at all. It can&apos;t say which pairings
+        so that cutoff is what decides whether you hold a line. It says nothing about which pairings
         you&apos;ll get.
       </p>
     </div>
@@ -341,7 +341,10 @@ export function CompiledBidView({
                     <p className="bid-kind">
                       {KIND_LABELS[line.kind]}
                       {line.verified === false && (
-                        <span className="chip chip-check" title="Holdline hasn't seen this wording on a real bid screen">
+                        <span
+                          className="chip chip-check"
+                          title="Holdline hasn't seen this wording on a real bid screen"
+                        >
                           check wording
                         </span>
                       )}
