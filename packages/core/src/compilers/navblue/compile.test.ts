@@ -20,7 +20,11 @@ const envoyFaWindows: DeploymentConfig = {
 /** Wording read off an Envoy ORD captain's own bid screen; see seed.ts. */
 const envoyPilot: DeploymentConfig = {
   labelsVerified: true,
-  labels: { "group.pairings": "Pairing Bid Group", "crit.layoverIn": "Any Layover In" },
+  labels: {
+    "group.pairings": "Pairing Bid Group",
+    "group.reserve": "Reserve Bid Group",
+    "crit.layoverIn": "Any Layover In",
+  },
 };
 
 describe("syntaxVerified", () => {
@@ -47,6 +51,61 @@ describe("syntaxVerified", () => {
       priorities: ["daysOff"],
     });
     expect(compile(withAvoid, "NAVBLUE", envoyPilot).syntaxVerified).toBe(false);
+  });
+});
+
+describe("a bid that covers both a line and reserve", () => {
+  const bid = compile(
+    intent({
+      lineType: "EITHER",
+      daysOff: { dates: ["2026-10-17"], daysOfWeek: ["FRI", "SAT", "SUN"], consecutive: 4 },
+      line: { maxDaysOn: 4, minDaysOffInARow: 2 },
+      reserve: { callTypes: ["R2", "R1", "lc"] },
+      priorities: ["daysOff", "workBlocks"],
+    }),
+    "NAVBLUE",
+    envoyPilot,
+  );
+
+  it("writes the pairing group, then the reserve group under it", () => {
+    expect(texts(bid)).toEqual([
+      [
+        "Pairing Bid Group",
+        "Prefer Off Oct 17, 2026",
+        "Prefer Off Friday, Saturday, Sunday",
+        "Set Condition 4 Consecutive Days Off In A Row",
+        "Set Condition Maximum Days On In A Row 4",
+        "Set Condition Minimum Days Off In A Row 2",
+        "Award Pairings",
+      ],
+      [
+        "Reserve Bid Group",
+        "Set Condition RSV Call Type R2",
+        "Set Condition RSV Call Type R1",
+        "Set Condition RSV Call Type LC",
+        "Prefer Off Oct 17, 2026",
+        "Prefer Off Friday, Saturday, Sunday",
+        "Set Condition 4 Consecutive Days Off In A Row",
+        "Set Condition Maximum Days On In A Row 4",
+        "Set Condition Minimum Days Off In A Row 2",
+      ],
+    ]);
+  });
+
+  it("tells the crew member to check their screen offers a reserve group", () => {
+    expect(bid.warnings).toEqual([
+      "Reserve bidding depends on your airline's reserve setup. Check your bid screen offers a reserve group before entering this.",
+    ]);
+  });
+
+  it("puts the count before the label on a block of days off", () => {
+    const set = bid.groups[0]!.lines.find((l) => l.text.includes("Consecutive"))!;
+    expect(set.uiPath).toEqual([
+      "Set Condition",
+      "Consecutive Days Off In A Row",
+      "Enter 4",
+      "Apply",
+    ]);
   });
 });
 
@@ -353,7 +412,7 @@ describe("NAVBLUE compiler", () => {
     expect(bid.warnings).toEqual([
       "Skipped trip length: not available in a NAVBLUE reserve group.",
       "Skipped red-eye, deadhead and legs-per-duty limits: not available in a NAVBLUE reserve group.",
-      "Reserve bidding depends on your airline's reserve setup. Check that Add Bid Group offers Start Reserve Bid before entering this.",
+      "Reserve bidding depends on your airline's reserve setup. Check your bid screen offers a reserve group before entering this.",
     ]);
   });
 

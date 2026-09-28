@@ -36,7 +36,11 @@ export const BidIntent = z.object({
   crewGroup: z.enum(["PILOT", "FLIGHT_ATTENDANT"]),
   month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "expected YYYY-MM"),
   base: z.string().length(3),
-  lineType: z.enum(["LINEHOLDER", "RESERVE"]).default("LINEHOLDER"),
+  /**
+   * EITHER bids pairings first and falls back to reserve in the same bid, which is what a crew
+   * member near the line/reserve cutoff does.
+   */
+  lineType: z.enum(["LINEHOLDER", "RESERVE", "EITHER"]).default("LINEHOLDER"),
   daysOff: z
     .object({
       dates: z.array(IsoDate).default([]), // priority = array order
@@ -49,6 +53,8 @@ export const BidIntent = z.object({
         )
         .default([]),
       weekends: z.boolean().default(false),
+      /** A block of this many days off in a row, anywhere in the month. */
+      consecutive: z.number().int().min(2).max(14).optional(),
     })
     .default({ dates: [], daysOfWeek: [], ranges: [], weekends: false }),
   pairings: z
@@ -84,6 +90,23 @@ export const BidIntent = z.object({
       commutable: z.boolean().default(false),
     })
     .default({ commutable: false }),
+  reserve: z
+    .object({
+      /**
+       * The airline's own reserve call types, most wanted first. Envoy's October package lists
+       * R1 (0400), R2 (1000), R3 (1200) and LC for long call.
+       */
+      callTypes: z
+        .array(
+          z
+            .string()
+            .trim()
+            .regex(/^[A-Za-z0-9]{1,4}$/, "expected a short code like R1 or LC")
+            .transform((c) => c.toUpperCase()),
+        )
+        .default([]),
+    })
+    .default({ callTypes: [] }),
   /** Canonical waiver keys (WAIVER_KEYS); each compiler maps what its vendor supports and warns on the rest. */
   waivers: z.array(z.string()).default([]),
   /** Most important first. Relaxation drops from the END of this list. */
@@ -109,7 +132,9 @@ export const PREFERENCE_NAMES: Record<PreferenceKey, string> = {
 
 const HAS_CONTENT: Record<PreferenceKey, (i: BidIntent) => boolean> = {
   daysOff: ({ daysOff: d }) =>
-    d.dates.length + d.ranges.length + d.daysOfWeek.length > 0 || d.weekends,
+    d.dates.length + d.ranges.length + d.daysOfWeek.length > 0 ||
+    d.weekends ||
+    d.consecutive !== undefined,
   pairingLength: (i) => i.pairings.lengthDays !== undefined,
   reportRelease: (i) => Boolean(i.pairings.reportAfter || i.pairings.releaseBefore),
   layovers: (i) => i.pairings.preferLayovers.length + i.pairings.avoidLayovers.length > 0,

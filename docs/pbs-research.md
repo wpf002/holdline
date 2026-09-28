@@ -55,6 +55,34 @@ PBS moves to the next bid group only through `Else Start Next Bid Group` (on Pre
 
 **UI.** Left nav INFO / CALENDAR / PAIRINGS / BIDS / RESULTS. Bid Preference Editor: type-ahead multi-select, time/number spinners, calendar picker, Apply disabled until required fields filled. Bid Analyzer tabs: Matching Bid Line, Removed From Pool, Filtered Pool, Added To Potential Awards, Total Potential Awards. Results: Awards + Reasons Report.
 
+**Envoy screen, 2026-09-28.** An ORD captain's October bid, read off `ny.pbs.vmc.navblue.cloud`:
+
+```
+1  Pairing Bid Group
+2    Set Condition 4 Consecutive Days Off In A Row
+3    Set Condition Minimum Days Off In A Row 2
+4    Set Condition Maximum Days On In A Row 4
+5    Prefer Off Friday, Saturday, Sunday
+6    Award Pairings If Any Duty Legs < 5 Legs If Pairing Check-In Time > 10:00 ...
+7    Award Pairings If Any Layover In MEM
+     Award Pairings
+8  Reserve Bid Group
+9    Set Condition RSV Call Type R2
+10   Set Condition RSV Call Type R1
+11   Set Condition RSV Call Type LC
+12   Set Condition RSV Call Type R3
+13   Set Condition Maximum Days On In A Row 4
+14   Prefer Off Oct 17, 2026, Oct 18, 2026, ...
+```
+
+Lines are numbered straight through both groups; the system `Award Pairings` footer isn't numbered.
+One bid can hold a pairing group and a reserve group, with no jump line between them, which is what
+a crew member near the cutoff bids. The Results screen's Reasons report echoes each numbered line
+with `Honored`, `Partially honored`, `Not used` or `Maximum number of bidders reached`, and closes
+with `Line Complete No Other Bids Required`.
+
+Envoy's wording differs from the guides on nine labels; they live in its `config.labels`.
+
 ## Jeppesen (United pilots)
 
 Up to 20 bid groups; upper-case statements `AWARD`, `AVOID`, `SET`, `WAIVE`; groups progressively relax. No floating "any N days off" — specific dates. Web UI only; UAL IT bans automated entry. Newer platform adds guided steps and AutoBid.

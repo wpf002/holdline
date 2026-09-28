@@ -52,7 +52,7 @@ const rows: Row[] = [
   ["NKS", "Spirit Airlines", "PILOT", "NAVBLUE", "THIRD_PARTY"],
   ["AAY", "Allegiant Air", "FLIGHT_ATTENDANT", "NAVBLUE", "CONFIRMED"],
   ["GJS", "GoJet Airlines", "PILOT", "NAVBLUE", "THIRD_PARTY"],
-  ["ENY", "Envoy Air", "PILOT", "NAVBLUE", "THIRD_PARTY", "PBS new 2025-26"],
+  ["ENY", "Envoy Air", "PILOT", "NAVBLUE", "CONFIRMED", "Pilot's own bid screen, Sept 2026"],
   ["ENY", "Envoy Air", "FLIGHT_ATTENDANT", "NAVBLUE", "CONFIRMED", "PBS new 2025-26"],
   ["PDT", "Piedmont Airlines", "PILOT", "NAVBLUE", "THIRD_PARTY", "PBS LOAs ratified 2025"],
   ["PDT", "Piedmont Airlines", "FLIGHT_ATTENDANT", "NAVBLUE", "THIRD_PARTY"],

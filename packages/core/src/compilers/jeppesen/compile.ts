@@ -125,6 +125,11 @@ export function compileJeppesen(intent: BidIntent, config: DeploymentConfig = {}
     syntaxVerified: false,
   });
 
+  if (intent.lineType === "EITHER") {
+    c.warn(
+      "This is the pairing half of your bid only. Holdline can't write a Jeppesen reserve group yet, so add yours by hand below it.",
+    );
+  }
   if (intent.lineType === "RESERVE") {
     c.warn("Holdline can't write Jeppesen reserve bids yet.");
     return result([]);

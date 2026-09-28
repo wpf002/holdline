@@ -70,52 +70,70 @@ export function compileNavblue(intent: BidIntent, config: DeploymentConfig = {})
     L: navblueLabels(config.labels, config.labelsVerified),
     warn: (m) => warnings.push(m),
   };
-  const reserve = intent.lineType === "RESERVE";
+  const reserveOnly = intent.lineType === "RESERVE";
+  const both = intent.lineType === "EITHER";
 
-  const built = new Map<PreferenceKey, Part>();
-  for (const key of PreferenceKey.options) {
-    if (reserve && !RESERVE_KEYS.has(key)) {
-      if (hasPreference(intent, key)) {
-        c.warn(`Skipped ${PREFERENCE_NAMES[key]}: not available in a NAVBLUE reserve group.`);
+  /** Preference lines in priority order. A reserve group only takes some of them. */
+  const partsFor = (forReserve: boolean, complain: boolean) => {
+    const built = new Map<PreferenceKey, Part>();
+    for (const key of PreferenceKey.options) {
+      if (forReserve && !RESERVE_KEYS.has(key)) {
+        if (complain && hasPreference(intent, key)) {
+          c.warn(`Skipped ${PREFERENCE_NAMES[key]}: not available in a NAVBLUE reserve group.`);
+        }
+        continue;
       }
-      continue;
+      const part = BUILDERS[key](c);
+      if (part.negatives.length + part.awards.length > 0) built.set(key, part);
     }
-    const part = BUILDERS[key](c);
-    if (part.negatives.length + part.awards.length > 0) built.set(key, part);
-  }
+    const { order, unranked } = resolvePriorities(intent.priorities, [...built.keys()]);
+    if (complain && unranked.length) {
+      c.warn(
+        `Ranked last because they're missing from your priorities: ${unranked.map((k) => PREFERENCE_NAMES[k]).join(", ")}.`,
+      );
+    }
+    if (complain && order.length === 0) c.warn("None of your preferences produced a bid line.");
+    return {
+      negatives: order.flatMap((k) => built.get(k)!.negatives),
+      awards: order.flatMap((k) => built.get(k)!.awards),
+    };
+  };
 
-  const { order, unranked } = resolvePriorities(intent.priorities, [...built.keys()]);
-  if (unranked.length) {
-    c.warn(
-      `Ranked last because they're missing from your priorities: ${unranked.map((k) => PREFERENCE_NAMES[k]).join(", ")}.`,
-    );
-  }
-  if (order.length === 0) c.warn("None of your preferences produced a bid line.");
-
-  const negatives = order.flatMap((k) => built.get(k)!.negatives);
-  const awards = order.flatMap((k) => built.get(k)!.awards);
-  const waives = waivers(c, reserve);
-
-  let groups: CompiledGroup[];
-  if (reserve) {
+  const warnAboutReserve = () => {
     const p = intent.pairings;
-    if (p.avoidRedeyes || p.avoidDeadheads || p.maxLegsPerDuty !== undefined) {
+    if (!both && (p.avoidRedeyes || p.avoidDeadheads || p.maxLegsPerDuty !== undefined)) {
       c.warn(
         "Skipped red-eye, deadhead and legs-per-duty limits: not available in a NAVBLUE reserve group.",
       );
     }
     c.warn(
-      "Reserve bidding depends on your airline's reserve setup. Check that Add Bid Group offers Start Reserve Bid before entering this.",
+      "Reserve bidding depends on your airline's reserve setup. Check your bid screen offers a reserve group before entering this.",
     );
-    groups = reserveGroups(c, [...waives, ...negatives]);
+  };
+
+  let groups: CompiledGroup[];
+  if (reserveOnly) {
+    const { negatives } = partsFor(true, true);
+    warnAboutReserve();
+    groups = reserveGroups(c, [...waivers(c, true), ...callTypes(c), ...negatives]);
   } else {
     // Waive lines always sit at the top of a group (AC_GUIDE p.5-62). Hard limits come next so Denial
     // Mode removes them last; Set Condition only has to be above every Award line (KB_MIN_DAYS_OFF).
-    groups = [pairingGroup(c, [...waives, ...hardAvoids(c), ...negatives, ...awards])];
+    const { negatives, awards } = partsFor(false, true);
+    groups = [pairingGroup(c, [...waivers(c, false), ...hardAvoids(c), ...negatives, ...awards])];
+    if (both) {
+      // What a crew member near the cutoff bids: pairings first, then the reserve group they'd
+      // fall to. No jump line, which is how it reads on an Envoy screen.
+      const reserveParts = partsFor(true, false);
+      warnAboutReserve();
+      groups.push(
+        reserveGroup(c, [...waivers(c, true), ...callTypes(c), ...reserveParts.negatives]),
+      );
+    }
   }
 
   // Every line is numbered except the embedded Award Pairings at the end of a pairing group (AC_GUIDE p.4-13).
-  const numbered = groups.reduce((n, g) => n + g.lines.length, 0) - (reserve ? 0 : 1);
+  const numbered = groups.reduce((n, g) => n + g.lines.length, 0) - (reserveOnly ? 0 : 1);
   if (config.maxBidLines !== undefined && numbered > config.maxBidLines) {
     c.warn(`This bid has ${numbered} lines; ${intent.airline} accepts ${config.maxBidLines}.`);
   }
@@ -187,6 +205,14 @@ function setCondition(
   return line("SET", text, [L("ui.set"), ...steps, L("ui.apply")], { preference });
 }
 
+/** The airline's reserve call types, most wanted first, above the rest of the reserve group. */
+function callTypes(c: Ctx): CompiledLine[] {
+  const { L } = c;
+  return c.intent.reserve.callTypes.map((code) =>
+    setCondition(c, `${L("set.rsvCallType")} ${code}`, undefined, "daysOff"),
+  );
+}
+
 // ── Groups ────────────────────────────────────────────────────────────
 
 function addGroupPath(c: Ctx, option: string): string[] {
@@ -207,6 +233,15 @@ function pairingGroup(c: Ctx, lines: CompiledLine[]): CompiledGroup {
   };
 }
 
+function reserveGroup(c: Ctx, lines: CompiledLine[], label = "Bid Group 2"): CompiledGroup {
+  const { L } = c;
+  return {
+    label,
+    relaxed: [],
+    lines: [line("SYSTEM", L("group.reserve"), addGroupPath(c, L("group.reserve"))), ...lines],
+  };
+}
+
 /** Start Reserve Bid sends PBS straight to the first Start Reserve group (AC_GUIDE p.4-11, 5-48). */
 function reserveGroups(c: Ctx, lines: CompiledLine[]): CompiledGroup[] {
   const { L } = c;
@@ -216,11 +251,7 @@ function reserveGroups(c: Ctx, lines: CompiledLine[]): CompiledGroup[] {
       relaxed: [],
       lines: [line("SYSTEM", L("group.reserveJump"), addGroupPath(c, L("group.reserveJump")))],
     },
-    {
-      label: "Bid Group 2",
-      relaxed: [],
-      lines: [line("SYSTEM", L("group.reserve"), addGroupPath(c, L("group.reserve"))), ...lines],
-    },
+    reserveGroup(c, lines),
   ];
 }
 
@@ -313,6 +344,19 @@ function daysOff(c: Ctx): Part {
       type: "worksOnWeekday",
       days: off.daysOfWeek,
     });
+  }
+  // A block of days off in a row is a condition on the line, not a filter on the pool, so it has
+  // no match. The count goes before the label: "Set Condition 4 Consecutive Days Off In A Row".
+  const { consecutive } = intent.daysOff;
+  if (consecutive !== undefined) {
+    out.push(
+      line(
+        "SET",
+        `${L("line.set")} ${consecutive} ${L("set.consecutiveDaysOff")}`,
+        [L("ui.set"), L("set.consecutiveDaysOff"), `Enter ${consecutive}`, L("ui.apply")],
+        { preference: "daysOff" },
+      ),
+    );
   }
   // A blank Minimum asks for as many weekends off as possible (AC_GUIDE p.5-14).
   if (off.weekends) {

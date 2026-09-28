@@ -115,6 +115,17 @@ export const LABELS = {
     source: "KB_CATALOG",
     screen: "ENY_SCREEN",
   },
+  // The count goes before the label on this one: "Set Condition 4 Consecutive Days Off In A Row".
+  "set.consecutiveDaysOff": {
+    text: "Consecutive Days Off In A Row",
+    source: "ENY_SCREEN",
+    screen: "ENY_SCREEN",
+  },
+  "set.rsvCallType": {
+    text: "RSV Call Type",
+    source: 'ENY_SCREEN ("Set Condition RSV Call Type R2")',
+    screen: "ENY_SCREEN",
+  },
   "set.minDaysOffInARow": {
     text: "Minimum Days Off In A Row",
     source: 'KB_MIN_DAYS_OFF ("Set Condition Minimum Days Off In A Row 5")',

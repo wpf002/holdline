@@ -49,6 +49,7 @@ export function emptyDraft(context: BidContext): BidIntent {
       specific: [],
     },
     line: { commutable: false },
+    reserve: { callTypes: [] },
     waivers: [],
     priorities: [],
   };

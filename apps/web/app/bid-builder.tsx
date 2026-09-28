@@ -56,6 +56,7 @@ export function BidBuilder({
     base: useId(),
     month: useId(),
     seniority: useId(),
+    callTypes: useId(),
     describe: useId(),
   };
   const [draft, setDraft] = useState<BidIntent>(() =>
@@ -315,15 +316,52 @@ export function BidBuilder({
               value={draft.lineType}
               options={[
                 { value: "LINEHOLDER", label: "A line" },
+                { value: "EITHER", label: "Either" },
                 { value: "RESERVE", label: "Reserve" },
               ]}
               onChange={(lineType) => update({ lineType })}
             />
           </div>
           <p className="hint" id={`${ids.seniority}-hint`}>
-            Your seniority number in this base and seat, for hold estimates from past award results.
+            Your seniority number in this base and seat, for working out whether you hold a line.
             Holdline uses it for the estimate and doesn&apos;t save it.
           </p>
+          {draft.lineType === "EITHER" && (
+            <p className="hint">
+              Either writes both halves: the pairings you want, then the reserve group you&apos;d
+              fall to. Bid it when you&apos;re near the line and reserve cutoff.
+            </p>
+          )}
+          {draft.lineType !== "LINEHOLDER" && (
+            <div className="field">
+              <label className="label" htmlFor={ids.callTypes}>
+                Reserve call types, best first
+              </label>
+              <input
+                id={ids.callTypes}
+                className="input input-code"
+                value={draft.reserve.callTypes.join(" ")}
+                placeholder="R1 R2 LC"
+                autoComplete="off"
+                aria-describedby={`${ids.callTypes}-hint`}
+                onChange={(e) =>
+                  update({
+                    reserve: {
+                      callTypes: e.target.value
+                        .toUpperCase()
+                        .split(/[^A-Z0-9]+/)
+                        .filter(Boolean)
+                        .slice(0, 8),
+                    },
+                  })
+                }
+              />
+              <p className="hint" id={`${ids.callTypes}-hint`}>
+                The codes your airline uses for reserve availability periods, in the order you want
+                them. Your bid package lists them; Envoy&apos;s are R1, R2, R3 and LC.
+              </p>
+            </div>
+          )}
           {airline && deployment && (
             <p className="hint">
               {airline.name} {CREW_PLURAL[draft.crewGroup]} bid in{" "}
@@ -383,6 +421,14 @@ export function BidBuilder({
 
         <Section id="days-title" step="03" title="Days off">
           <DaysOffPicker month={draft.month} daysOff={draft.daysOff} onChange={updateDaysOff} />
+          <div className="row">
+            <NumberSelect
+              label="Days off in a row, somewhere in the month"
+              value={draft.daysOff.consecutive}
+              options={range(2, 10)}
+              onChange={(consecutive) => updateDaysOff({ consecutive })}
+            />
+          </div>
         </Section>
 
         <Section id="trips-title" step="04" title="Trips">
