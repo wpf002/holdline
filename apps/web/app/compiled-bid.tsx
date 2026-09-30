@@ -190,6 +190,7 @@ export function CompiledBidView({
 }) {
   const [done, setDone] = useState<Set<string>>(() => new Set());
   const [copied, setCopied] = useState<string | null>(null);
+  const [copyError, setCopyError] = useState<string | null>(null);
   const numbers = numberLines(bid);
   const total = numbers.flat().filter((n) => n !== null).length;
   // Lines whose wording Holdline hasn't seen on a real bid screen. The compiler marks each one.
@@ -199,9 +200,13 @@ export function CompiledBidView({
     try {
       await navigator.clipboard.writeText(text);
       setCopied(id);
+      setCopyError(null);
       setTimeout(() => setCopied((c) => (c === id ? null : c)), 1500);
     } catch {
+      // Some browsers refuse the clipboard without a gesture they recognise. Say so, because a
+      // button that silently does nothing reads as broken.
       setCopied(null);
+      setCopyError("Your browser blocked the copy. Select the line and copy it by hand.");
     }
   }
 
@@ -290,6 +295,11 @@ export function CompiledBidView({
         <div className="progress-bar" aria-hidden="true">
           <span style={{ width: `${total ? (done.size / total) * 100 : 0}%` }} />
         </div>
+        {copyError && (
+          <p className="error-text" role="alert">
+            {copyError}
+          </p>
+        )}
       </div>
 
       {bid.groups.map((group, gi) => (
@@ -339,7 +349,7 @@ export function CompiledBidView({
                   </div>
                   <div className="bid-body">
                     <p className="bid-kind">
-                      {KIND_LABELS[line.kind]}
+                      {KIND_LABELS[line.kind]}{" "}
                       {line.verified === false && (
                         <span
                           className="chip chip-check"

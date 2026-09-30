@@ -719,7 +719,7 @@ export function BidBuilder({
           ) : (
             <div className="bid-empty">
               <p>Your bid shows up here, line by line, once you build it.</p>
-              <p>Pick your airline and base, add a preference, then Build my bid.</p>
+              <p>Pick your airline and base, add a preference, then Build My Bid.</p>
             </div>
           )}
         </section>
