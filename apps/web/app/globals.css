@@ -307,6 +307,11 @@ a:hover {
     grid-template-columns: minmax(0, 1fr) 460px;
   }
 
+  /* Before an airline is picked there's no bid to show, so the form gets the whole width. */
+  .workspace-solo {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .aside {
     position: sticky;
     top: var(--s-5);

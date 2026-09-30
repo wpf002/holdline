@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { verifySignInLink } from "../../../lib/api";
+import { forgetAccount } from "../../../lib/use-account";
 
 export function VerifyLink({ apiUrl }: { apiUrl: string }) {
   const token = useSearchParams().get("token");
@@ -18,9 +19,11 @@ export function VerifyLink({ apiUrl }: { apiUrl: string }) {
       setState({ error: "This page needs the link from your email." });
       return;
     }
-    void verifySignInLink(apiUrl, token).then((res) =>
-      setState(res.ok ? { email: res.data.account.email } : { error: res.message }),
-    );
+    void verifySignInLink(apiUrl, token).then((res) => {
+      // The nav and the rest of the page share one cached read of /auth/me; this one is now stale.
+      if (res.ok) forgetAccount();
+      setState(res.ok ? { email: res.data.account.email } : { error: res.message });
+    });
   }, [apiUrl, token]);
 
   if (!state) return <p className="hint">Checking your link…</p>;

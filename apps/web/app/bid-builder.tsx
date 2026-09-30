@@ -233,7 +233,7 @@ export function BidBuilder({
   );
 
   return (
-    <div className="workspace">
+    <div className={draft.airline ? "workspace" : "workspace workspace-solo"}>
       <div className="inputs">
         <Section id="context-title" step="01" title="Bid month">
           {defaultBid && (
@@ -668,62 +668,64 @@ export function BidBuilder({
         )}
       </div>
 
-      <aside className="aside" aria-label="Priorities and bid">
-        <Section
-          id="priorities-title"
-          title="What matters most"
-          hint="Drag to reorder, most important first. When PBS can't give you everything, it gives up the bottom of this list first. This order is the whole bid."
-        >
-          <PriorityList
-            items={priorities}
-            describe={(key) => describePreference(draft, key)}
-            onReorder={(keys) => update({ priorities: keys })}
-          />
-          <button
-            type="button"
-            className="button button-primary button-block"
-            onClick={build}
-            disabled={building || (deployment !== undefined && !supported)}
-            aria-busy={building}
+      {draft.airline && (
+        <aside className="aside" aria-label="Priorities and bid">
+          <Section
+            id="priorities-title"
+            title="What matters most"
+            hint="Drag to reorder, most important first. When PBS can't give you everything, it gives up the bottom of this list first. This order is the whole bid."
           >
-            {building ? "Building…" : "Build My Bid"}
-          </button>
-          {buildError && (
-            <p className="error-text" role="alert">
-              {buildError}
-            </p>
-          )}
-        </Section>
-
-        <section ref={outputRef} className="section" aria-labelledby="bid-title">
-          <div className="section-head plain">
-            <h2 id="bid-title">Your bid</h2>
-            {result && (
-              <p className="hint">
-                Enter these lines in order and tick each one off. Holdline never logs in to your
-                airline or submits for you.
+            <PriorityList
+              items={priorities}
+              describe={(key) => describePreference(draft, key)}
+              onReorder={(keys) => update({ priorities: keys })}
+            />
+            <button
+              type="button"
+              className="button button-primary button-block"
+              onClick={build}
+              disabled={building || (deployment !== undefined && !supported)}
+              aria-busy={building}
+            >
+              {building ? "Building…" : "Build My Bid"}
+            </button>
+            {buildError && (
+              <p className="error-text" role="alert">
+                {buildError}
               </p>
             )}
-          </div>
-          <hr className="holdline-rule" />
-          {result ? (
-            <div className="reveal" key={result.builtFrom}>
-              <CompiledBidView
-                bid={result.bid}
-                stale={stale}
-                poolHint={request.lineType === "LINEHOLDER"}
-              />
-              <hr className="divider" />
-              <SaveBid apiUrl={apiUrl} account={account} intent={request} />
+          </Section>
+
+          <section ref={outputRef} className="section" aria-labelledby="bid-title">
+            <div className="section-head plain">
+              <h2 id="bid-title">Your bid</h2>
+              {result && (
+                <p className="hint">
+                  Enter these lines in order and tick each one off. Holdline never logs in to your
+                  airline or submits for you.
+                </p>
+              )}
             </div>
-          ) : (
-            <div className="bid-empty">
-              <p>Your bid shows up here, line by line, once you build it.</p>
-              <p>Pick your airline and base, add a preference, then Build My Bid.</p>
-            </div>
-          )}
-        </section>
-      </aside>
+            <hr className="holdline-rule" />
+            {result ? (
+              <div className="reveal" key={result.builtFrom}>
+                <CompiledBidView
+                  bid={result.bid}
+                  stale={stale}
+                  poolHint={request.lineType === "LINEHOLDER"}
+                />
+                <hr className="divider" />
+                <SaveBid apiUrl={apiUrl} account={account} intent={request} />
+              </div>
+            ) : (
+              <div className="bid-empty">
+                <p>Your bid shows up here, line by line, once you build it.</p>
+                <p>Pick your airline and base, add a preference, then Build My Bid.</p>
+              </div>
+            )}
+          </section>
+        </aside>
+      )}
     </div>
   );
 }
