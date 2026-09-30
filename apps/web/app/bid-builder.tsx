@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  PREFERENCE_NAMES,
-  WAIVER_KEYS,
-  type BidIntent,
-  type CompileResponse,
-} from "@holdline/types";
+import { WAIVER_KEYS, type BidIntent, type CompileResponse } from "@holdline/types";
 import { useEffect, useId, useRef, useState } from "react";
 import {
   compileBid,
@@ -69,8 +64,6 @@ export function BidBuilder({
   );
   // Bumped when the parser replaces the draft, so fields that keep their own text remount.
   const [formVersion, setFormVersion] = useState(0);
-  // The short form asks four things and builds a working bid; the full form is one click away.
-  const [mode, setMode] = useState<"short" | "full">("short");
   const [description, setDescription] = useState("");
   // Seniority only feeds hold estimates; it isn't part of the bid.
   const [seniority, setSeniority] = useState("");
@@ -145,6 +138,8 @@ export function BidBuilder({
     /^\d+$/.test(seniority) && Number(seniority) > 0 ? Number(seniority) : undefined;
   const builtKey = JSON.stringify({ request, seniority: seniorityNumber });
   const stale = result !== null && result.builtFrom !== builtKey;
+  // Nothing to rank and nothing to build until they've named the bid and asked for something.
+  const ready = Boolean(draft.airline) && /^[A-Za-z]{3}$/.test(draft.base) && priorities.length > 0;
   const contextProblem = !draft.airline
     ? "Choose your airline."
     : !/^[A-Za-z]{3}$/.test(draft.base)
@@ -217,23 +212,8 @@ export function BidBuilder({
   const { pairings, line } = draft;
   const trip = pairings.lengthDays ?? { min: 1, max: LONGEST_TRIP };
 
-  const tripChoice: "short" | "long" | "any" = !pairings.lengthDays
-    ? "any"
-    : trip.max <= 2
-      ? "short"
-      : "long";
-  const clockChoice: "late" | "early" | "any" = pairings.reportAfter
-    ? "late"
-    : pairings.releaseBefore
-      ? "early"
-      : "any";
-  // Anything the short form doesn't ask about, so it isn't quietly dropped when they switch back.
-  const extras = priorities.filter(
-    (k) => !["daysOff", "pairingLength", "reportRelease"].includes(k),
-  );
-
   return (
-    <div className={draft.airline ? "workspace" : "workspace workspace-solo"}>
+    <div className="workspace">
       <div className="inputs">
         <Section id="context-title" step="01" title="Bid month">
           {defaultBid && (
@@ -394,282 +374,211 @@ export function BidBuilder({
           )}
         </Section>
 
-        {mode === "short" ? (
-          <>
-            <Section id="short-days-title" step="02" title="Days you want off">
-              <DaysOffPicker month={draft.month} daysOff={draft.daysOff} onChange={updateDaysOff} />
-            </Section>
-
-            <Section id="short-trips-title" step="03" title="Trips">
-              <Segmented
-                label="Trip length"
-                value={tripChoice}
-                options={[
-                  { value: "any", label: "Any Length" },
-                  { value: "short", label: "Short (1-2 Days)" },
-                  { value: "long", label: "Long (3-4 Days)" },
-                ]}
-                onChange={(v) =>
-                  v === "any"
-                    ? setTripLength(1, LONGEST_TRIP)
-                    : v === "short"
-                      ? setTripLength(1, 2)
-                      : setTripLength(3, 4)
-                }
-              />
-              <Segmented
-                label="Your day"
-                value={clockChoice}
-                options={[
-                  { value: "any", label: "Either" },
-                  { value: "late", label: "Start Late" },
-                  { value: "early", label: "Finish Early" },
-                ]}
-                onChange={(v) =>
-                  updatePairings({
-                    reportAfter: v === "late" ? "10:00" : undefined,
-                    releaseBefore: v === "early" ? "18:00" : undefined,
-                  })
-                }
-              />
-              <p className="hint">
-                Trip length and times ask PBS for what you want. They don&apos;t rule anything out,
-                so a thin month can still give you something else.
-              </p>
-            </Section>
-
-            <Section id="short-more-title" step="04" title="Anything else">
-              <p className="hint">
-                That&apos;s enough for a bid. Rank what matters most on the right, then build it.
-                The full form adds layovers, credit, work blocks, waivers and specific pairings.
-              </p>
-              {extras.length > 0 && (
-                <p className="hint">
-                  You also set {extras.map((k) => PREFERENCE_NAMES[k]).join(", ")} in the full form.
-                  Holdline keeps {extras.length === 1 ? "it" : "them"} in your bid.
-                </p>
-              )}
-              <div className="actions">
-                <button type="button" className="button" onClick={() => setMode("full")}>
-                  Change Anything
-                </button>
-              </div>
-            </Section>
-          </>
-        ) : (
-          <>
-            <Section
-              id="describe-title"
-              step="02"
-              title="Describe it"
-              hint="Optional. Holdline fills in the form below from your description. Check what it filled in before you build."
+        <Section
+          id="describe-title"
+          step="02"
+          title="Describe it"
+          hint="Optional. Holdline fills in the form below from your description. Check what it filled in before you build."
+        >
+          <div className="field">
+            <label className="label" htmlFor={ids.describe}>
+              What do you want next month?
+            </label>
+            <textarea
+              id={ids.describe}
+              className="textarea"
+              value={description}
+              maxLength={2000}
+              placeholder="Off the 10th through 12th. 3-day trips, no reports before 8. Avoid ORD overnights. 75 to 85 hours. Days off matter most."
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
+          <div className="actions">
+            <button
+              type="button"
+              className="button"
+              onClick={fillFromDescription}
+              disabled={parsing || !description.trim()}
+              aria-busy={parsing}
             >
-              <div className="field">
-                <label className="label" htmlFor={ids.describe}>
-                  What do you want next month?
-                </label>
-                <textarea
-                  id={ids.describe}
-                  className="textarea"
-                  value={description}
-                  maxLength={2000}
-                  placeholder="Off the 10th through 12th. 3-day trips, no reports before 8. Avoid ORD overnights. 75 to 85 hours. Days off matter most."
-                  onChange={(e) => setDescription(e.target.value)}
-                />
-              </div>
-              <div className="actions">
-                <button
-                  type="button"
-                  className="button"
-                  onClick={fillFromDescription}
-                  disabled={parsing || !description.trim()}
-                  aria-busy={parsing}
-                >
-                  {parsing ? "Reading…" : "Fill In the Form"}
-                </button>
-              </div>
-              {parseError && (
-                <p className="error-text" role="alert">
-                  {parseError}
-                </p>
-              )}
-              {questions.length > 0 && (
-                <div className="notice" role="status">
-                  <p className="notice-title">Questions about your description</p>
-                  <ul>
-                    {questions.map((q) => (
-                      <li key={q}>{q}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </Section>
+              {parsing ? "Reading…" : "Fill In the Form"}
+            </button>
+          </div>
+          {parseError && (
+            <p className="error-text" role="alert">
+              {parseError}
+            </p>
+          )}
+          {questions.length > 0 && (
+            <div className="notice" role="status">
+              <p className="notice-title">Questions about your description</p>
+              <ul>
+                {questions.map((q) => (
+                  <li key={q}>{q}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </Section>
 
-            <Section id="days-title" step="03" title="Days off">
-              <DaysOffPicker month={draft.month} daysOff={draft.daysOff} onChange={updateDaysOff} />
-              <div className="row">
-                <NumberSelect
-                  label="Days off in a row, somewhere in the month"
-                  value={draft.daysOff.consecutive}
-                  options={range(2, 10)}
-                  onChange={(consecutive) => updateDaysOff({ consecutive })}
-                />
-              </div>
-            </Section>
+        <Section id="days-title" step="03" title="Days off">
+          <DaysOffPicker month={draft.month} daysOff={draft.daysOff} onChange={updateDaysOff} />
+          <div className="row">
+            <NumberSelect
+              label="Days off in a row, somewhere in the month"
+              value={draft.daysOff.consecutive}
+              options={range(2, 10)}
+              onChange={(consecutive) => updateDaysOff({ consecutive })}
+            />
+          </div>
+        </Section>
 
-            <Section id="trips-title" step="04" title="Trips">
-              <div className="row">
-                <NumberSelect
-                  label="Shortest trip (days)"
-                  value={trip.min === 1 ? undefined : trip.min}
-                  options={range(2, LONGEST_TRIP)}
-                  onChange={(v = 1) => setTripLength(v, Math.max(trip.max, v))}
-                />
-                <NumberSelect
-                  label="Longest trip (days)"
-                  value={trip.max === LONGEST_TRIP ? undefined : trip.max}
-                  options={range(1, LONGEST_TRIP - 1)}
-                  onChange={(v = LONGEST_TRIP) => setTripLength(Math.min(trip.min, v), v)}
-                />
-              </div>
-              <div className="row">
-                <TimeField
-                  label="Report after"
-                  value={pairings.reportAfter}
-                  onChange={(reportAfter) => updatePairings({ reportAfter })}
-                />
-                <TimeField
-                  label="Release before"
-                  value={pairings.releaseBefore}
-                  onChange={(releaseBefore) => updatePairings({ releaseBefore })}
-                />
-                <NumberSelect
-                  label="Most legs in a duty day"
-                  value={pairings.maxLegsPerDuty}
-                  options={range(1, 6)}
-                  onChange={(maxLegsPerDuty) => updatePairings({ maxLegsPerDuty })}
-                />
-              </div>
-              <div className="group">
-                <label className="check">
-                  <input
-                    type="checkbox"
-                    checked={pairings.avoidRedeyes}
-                    onChange={(e) => updatePairings({ avoidRedeyes: e.target.checked })}
-                  />
-                  <span>No red-eyes</span>
-                </label>
-                <label className="check">
-                  <input
-                    type="checkbox"
-                    checked={pairings.avoidDeadheads}
-                    onChange={(e) => updatePairings({ avoidDeadheads: e.target.checked })}
-                  />
-                  <span>No deadheads</span>
-                </label>
-                <p className="hint">
-                  Trip length and report times ask PBS for the trips you want. Red-eyes, deadheads
-                  and legs per day are hard limits, so Holdline keeps them even when PBS has to drop
-                  your other wishes.
-                </p>
-              </div>
-            </Section>
-
-            <Section id="layovers-title" step="05" title="Layovers">
-              <div className="row row-top">
-                <StationList
-                  label="Avoid layovers in"
-                  stations={pairings.avoidLayovers}
-                  onChange={(avoidLayovers) => updatePairings({ avoidLayovers })}
-                />
-                <StationList
-                  label="Prefer layovers in"
-                  stations={pairings.preferLayovers}
-                  onChange={(preferLayovers) => updatePairings({ preferLayovers })}
-                />
-              </div>
-            </Section>
-
-            <Section id="line-title" step="06" title="Credit and work blocks">
-              <CreditInputs
-                key={`credit-${formVersion}`}
-                value={line.creditMinutes}
-                onChange={(creditMinutes) => updateLine({ creditMinutes })}
+        <Section id="trips-title" step="04" title="Trips">
+          <div className="row">
+            <NumberSelect
+              label="Shortest trip (days)"
+              value={trip.min === 1 ? undefined : trip.min}
+              options={range(2, LONGEST_TRIP)}
+              onChange={(v = 1) => setTripLength(v, Math.max(trip.max, v))}
+            />
+            <NumberSelect
+              label="Longest trip (days)"
+              value={trip.max === LONGEST_TRIP ? undefined : trip.max}
+              options={range(1, LONGEST_TRIP - 1)}
+              onChange={(v = LONGEST_TRIP) => setTripLength(Math.min(trip.min, v), v)}
+            />
+          </div>
+          <div className="row">
+            <TimeField
+              label="Report after"
+              value={pairings.reportAfter}
+              onChange={(reportAfter) => updatePairings({ reportAfter })}
+            />
+            <TimeField
+              label="Release before"
+              value={pairings.releaseBefore}
+              onChange={(releaseBefore) => updatePairings({ releaseBefore })}
+            />
+            <NumberSelect
+              label="Most legs in a duty day"
+              value={pairings.maxLegsPerDuty}
+              options={range(1, 6)}
+              onChange={(maxLegsPerDuty) => updatePairings({ maxLegsPerDuty })}
+            />
+          </div>
+          <div className="group">
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={pairings.avoidRedeyes}
+                onChange={(e) => updatePairings({ avoidRedeyes: e.target.checked })}
               />
-              <div className="row">
-                <NumberSelect
-                  label="Most days on in a row"
-                  value={line.maxDaysOn}
-                  options={range(1, 7)}
-                  onChange={(maxDaysOn) => updateLine({ maxDaysOn })}
-                />
-                <NumberSelect
-                  label="Fewest days off in a row"
-                  value={line.minDaysOffInARow}
-                  options={range(1, 6)}
-                  onChange={(minDaysOffInARow) => updateLine({ minDaysOffInARow })}
-                />
-              </div>
-              <label className="check">
+              <span>No red-eyes</span>
+            </label>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={pairings.avoidDeadheads}
+                onChange={(e) => updatePairings({ avoidDeadheads: e.target.checked })}
+              />
+              <span>No deadheads</span>
+            </label>
+            <p className="hint">
+              Trip length and report times ask PBS for the trips you want. Red-eyes, deadheads and
+              legs per day are hard limits, so Holdline keeps them even when PBS has to drop your
+              other wishes.
+            </p>
+          </div>
+        </Section>
+
+        <Section id="layovers-title" step="05" title="Layovers">
+          <div className="row row-top">
+            <StationList
+              label="Avoid layovers in"
+              stations={pairings.avoidLayovers}
+              onChange={(avoidLayovers) => updatePairings({ avoidLayovers })}
+            />
+            <StationList
+              label="Prefer layovers in"
+              stations={pairings.preferLayovers}
+              onChange={(preferLayovers) => updatePairings({ preferLayovers })}
+            />
+          </div>
+        </Section>
+
+        <Section id="line-title" step="06" title="Credit and work blocks">
+          <CreditInputs
+            key={`credit-${formVersion}`}
+            value={line.creditMinutes}
+            onChange={(creditMinutes) => updateLine({ creditMinutes })}
+          />
+          <div className="row">
+            <NumberSelect
+              label="Most days on in a row"
+              value={line.maxDaysOn}
+              options={range(1, 7)}
+              onChange={(maxDaysOn) => updateLine({ maxDaysOn })}
+            />
+            <NumberSelect
+              label="Fewest days off in a row"
+              value={line.minDaysOffInARow}
+              options={range(1, 6)}
+              onChange={(minDaysOffInARow) => updateLine({ minDaysOffInARow })}
+            />
+          </div>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={line.commutable}
+              onChange={(e) => updateLine({ commutable: e.target.checked })}
+            />
+            <span>I commute to my base</span>
+          </label>
+        </Section>
+
+        <Section
+          id="pairings-title"
+          step="07"
+          title="Specific pairings"
+          hint="Pairings from the bid packet you want most, by number and date."
+        >
+          <SpecificPairings
+            key={`pairings-${formVersion}-${draft.month}`}
+            month={draft.month}
+            pairings={pairings.specific}
+            onChange={(specific) => updatePairings({ specific })}
+          />
+        </Section>
+
+        <Section
+          id="waivers-title"
+          step="08"
+          title="Waivers"
+          hint="Waivers let PBS build lines your contract otherwise blocks."
+        >
+          <div className="group">
+            {Object.entries(WAIVER_KEYS).map(([key, text]) => (
+              <label key={key} className="check">
                 <input
                   type="checkbox"
-                  checked={line.commutable}
-                  onChange={(e) => updateLine({ commutable: e.target.checked })}
+                  checked={draft.waivers.includes(key)}
+                  onChange={(e) =>
+                    update({
+                      waivers: e.target.checked
+                        ? [...draft.waivers, key]
+                        : draft.waivers.filter((w) => w !== key),
+                    })
+                  }
                 />
-                <span>I commute to my base</span>
+                <span>{text}</span>
               </label>
-            </Section>
-
-            <Section
-              id="pairings-title"
-              step="07"
-              title="Specific pairings"
-              hint="Pairings from the bid packet you want most, by number and date."
-            >
-              <SpecificPairings
-                key={`pairings-${formVersion}-${draft.month}`}
-                month={draft.month}
-                pairings={pairings.specific}
-                onChange={(specific) => updatePairings({ specific })}
-              />
-            </Section>
-
-            <Section
-              id="waivers-title"
-              step="08"
-              title="Waivers"
-              hint="Waivers let PBS build lines your contract otherwise blocks."
-            >
-              <div className="group">
-                {Object.entries(WAIVER_KEYS).map(([key, text]) => (
-                  <label key={key} className="check">
-                    <input
-                      type="checkbox"
-                      checked={draft.waivers.includes(key)}
-                      onChange={(e) =>
-                        update({
-                          waivers: e.target.checked
-                            ? [...draft.waivers, key]
-                            : draft.waivers.filter((w) => w !== key),
-                        })
-                      }
-                    />
-                    <span>{text}</span>
-                  </label>
-                ))}
-              </div>
-            </Section>
-            <div className="actions">
-              <button type="button" className="button" onClick={() => setMode("short")}>
-                Back to the Short Form
-              </button>
-            </div>
-          </>
-        )}
+            ))}
+          </div>
+        </Section>
       </div>
 
-      {draft.airline && (
-        <aside className="aside" aria-label="Priorities and bid">
+      {ready && (
+        <aside className="aside" aria-label="What matters most and your bid">
           <Section
             id="priorities-title"
             title="What matters most"

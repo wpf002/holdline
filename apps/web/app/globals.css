@@ -204,7 +204,7 @@ a:hover {
 }
 
 .band-inner {
-  max-width: 1200px;
+  max-width: 920px;
   margin: 0 auto;
   padding: var(--s-3) var(--s-4);
   display: flex;
@@ -260,7 +260,7 @@ a:hover {
 /* ── Page layout ──────────────────────────────────────────────────── */
 
 .page {
-  max-width: 1200px;
+  max-width: 920px;
   margin: 0 auto;
   padding: var(--s-7) var(--s-4) var(--s-9);
   display: grid;
@@ -302,25 +302,7 @@ a:hover {
   min-width: 0;
 }
 
-@media (min-width: 1100px) {
-  .workspace {
-    grid-template-columns: minmax(0, 1fr) 460px;
-  }
-
-  /* Before an airline is picked there's no bid to show, so the form gets the whole width. */
-  .workspace-solo {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .aside {
-    position: sticky;
-    top: var(--s-5);
-    max-height: calc(100vh - var(--s-6));
-    overflow-y: auto;
-    padding-right: var(--s-1);
-    scrollbar-width: thin;
-  }
-}
+/* One column all the way down: the steps, then what matters most, then the bid. */
 
 /* ── Sections ─────────────────────────────────────────────────────── */
 
