@@ -1,13 +1,13 @@
 import { SavedBids } from "./saved-bids";
 
-export const metadata = { title: "My bids · Holdline" };
+export const metadata = { title: "My Bids · Holdline" };
 
 export default function BidsPage() {
   return (
     <main className="page">
       <div className="hero">
         <p className="eyebrow">Account</p>
-        <h1>My bids</h1>
+        <h1>My Bids</h1>
         <p className="lede">
           Saved bids, newest first. The default bid is the one the form starts from each month.
         </p>

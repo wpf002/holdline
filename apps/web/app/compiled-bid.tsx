@@ -272,7 +272,7 @@ export function CompiledBidView({
       ) : (
         poolHint && (
           <p className="hint">
-            <Link href="/pairings">Import this month&apos;s pairings</Link> to see how many pairings
+            <Link href="/pairings">Import This Month&apos;s Pairings</Link> to see how many pairings
             each line removes.
           </p>
         )
@@ -284,7 +284,7 @@ export function CompiledBidView({
             {done.size}/{total} lines entered
           </p>
           <button type="button" className="button" onClick={() => copy("all", asText(bid))}>
-            {copied === "all" ? "Copied" : "Copy whole bid"}
+            {copied === "all" ? "Copied" : "Copy Whole Bid"}
           </button>
         </div>
         <div className="progress-bar" aria-hidden="true">

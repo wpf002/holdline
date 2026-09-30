@@ -40,7 +40,7 @@ export function DaysOffPicker({
           label="Pick"
           value={mode}
           options={[
-            { value: "days", label: "Single days" },
+            { value: "days", label: "Single Days" },
             { value: "blocks", label: "Blocks" },
           ]}
           onChange={(m) => {
@@ -54,7 +54,7 @@ export function DaysOffPicker({
             className="button button-quiet"
             onClick={() => onChange({ dates: [], ranges: [], daysOfWeek: [], weekends: false })}
           >
-            Clear days off
+            Clear Days Off
           </button>
         )}
       </div>

@@ -1,13 +1,13 @@
 import { LoginForm } from "./login-form";
 
-export const metadata = { title: "Sign in · Holdline" };
+export const metadata = { title: "Sign In · Holdline" };
 
 export default function LoginPage() {
   return (
     <main className="page">
       <div className="hero">
         <p className="eyebrow">Account</p>
-        <h1>Sign in</h1>
+        <h1>Sign In</h1>
         <p className="lede">
           Holdline emails you a link. No password. Signing in lets you save bids and keep a default
           bid to start from each month.

@@ -34,7 +34,7 @@ import { StationList } from "./station-list";
 import { useAccount } from "../lib/use-account";
 
 type Crew = BidIntent["crewGroup"];
-const CREW_LABELS: Record<Crew, string> = { PILOT: "Pilot", FLIGHT_ATTENDANT: "Flight attendant" };
+const CREW_LABELS: Record<Crew, string> = { PILOT: "Pilot", FLIGHT_ATTENDANT: "Flight Attendant" };
 const CREW_PLURAL: Record<Crew, string> = {
   PILOT: "pilots",
   FLIGHT_ATTENDANT: "flight attendants",
@@ -244,7 +244,7 @@ export function BidBuilder({
               </p>
               <div className="actions">
                 <button type="button" className="button" onClick={startFromDefault}>
-                  Start from it
+                  Start from It
                 </button>
               </div>
             </div>
@@ -337,7 +337,7 @@ export function BidBuilder({
               label="Bidding for"
               value={draft.lineType}
               options={[
-                { value: "LINEHOLDER", label: "A line" },
+                { value: "LINEHOLDER", label: "A Line" },
                 { value: "EITHER", label: "Either" },
                 { value: "RESERVE", label: "Reserve" },
               ]}
@@ -405,9 +405,9 @@ export function BidBuilder({
                 label="Trip length"
                 value={tripChoice}
                 options={[
-                  { value: "any", label: "Any length" },
-                  { value: "short", label: "Short (1-2 days)" },
-                  { value: "long", label: "Long (3-4 days)" },
+                  { value: "any", label: "Any Length" },
+                  { value: "short", label: "Short (1-2 Days)" },
+                  { value: "long", label: "Long (3-4 Days)" },
                 ]}
                 onChange={(v) =>
                   v === "any"
@@ -422,8 +422,8 @@ export function BidBuilder({
                 value={clockChoice}
                 options={[
                   { value: "any", label: "Either" },
-                  { value: "late", label: "Start late" },
-                  { value: "early", label: "Finish early" },
+                  { value: "late", label: "Start Late" },
+                  { value: "early", label: "Finish Early" },
                 ]}
                 onChange={(v) =>
                   updatePairings({
@@ -451,7 +451,7 @@ export function BidBuilder({
               )}
               <div className="actions">
                 <button type="button" className="button" onClick={() => setMode("full")}>
-                  Change anything
+                  Change Anything
                 </button>
               </div>
             </Section>
@@ -485,7 +485,7 @@ export function BidBuilder({
                   disabled={parsing || !description.trim()}
                   aria-busy={parsing}
                 >
-                  {parsing ? "Reading…" : "Fill in the form"}
+                  {parsing ? "Reading…" : "Fill In the Form"}
                 </button>
               </div>
               {parseError && (
@@ -661,7 +661,7 @@ export function BidBuilder({
             </Section>
             <div className="actions">
               <button type="button" className="button" onClick={() => setMode("short")}>
-                Back to the short form
+                Back to the Short Form
               </button>
             </div>
           </>
@@ -686,7 +686,7 @@ export function BidBuilder({
             disabled={building || (deployment !== undefined && !supported)}
             aria-busy={building}
           >
-            {building ? "Building…" : "Build my bid"}
+            {building ? "Building…" : "Build My Bid"}
           </button>
           {buildError && (
             <p className="error-text" role="alert">

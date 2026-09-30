@@ -25,7 +25,7 @@ export function AccountPanel({ apiUrl, airlines }: { apiUrl: string; airlines: A
       <div className="notice narrow">
         <p className="notice-title">You&apos;re not signed in</p>
         <p>
-          <Link href="/login">Sign in</Link> to save bids and keep your defaults.
+          <Link href="/login">Sign In</Link> to save bids and keep your defaults.
         </p>
       </div>
     );
@@ -129,7 +129,7 @@ function SignedIn({
             value={crewGroup}
             options={[
               { value: "PILOT", label: "Pilot" },
-              { value: "FLIGHT_ATTENDANT", label: "Flight attendant" },
+              { value: "FLIGHT_ATTENDANT", label: "Flight Attendant" },
             ]}
             onChange={setCrewGroup}
           />
@@ -172,7 +172,7 @@ function SignedIn({
             disabled={saving}
             aria-busy={saving}
           >
-            {saving ? "Saving…" : "Save defaults"}
+            {saving ? "Saving…" : "Save Defaults"}
           </button>
           {message && (
             <p className={message.error ? "error-text" : "hint"} role="status">
@@ -204,7 +204,7 @@ function SignedIn({
               disabled={billingBusy}
               aria-busy={billingBusy}
             >
-              Manage billing
+              Manage Billing
             </button>
           ) : (
             <button
@@ -231,7 +231,7 @@ function SignedIn({
         </p>
         <div className="actions">
           <button type="button" className="button" onClick={leave}>
-            Sign out
+            Sign Out
           </button>
         </div>
       </Section>

@@ -4,7 +4,7 @@ import { bidMonths } from "../../lib/draft";
 import { ImportForm } from "./import-form";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Import pairings · Holdline" };
+export const metadata = { title: "Bid Package · Holdline" };
 
 export default async function PairingsPage() {
   const today = new Date();
@@ -21,7 +21,7 @@ export default async function PairingsPage() {
     <main className="page">
       <div className="hero">
         <p className="eyebrow">Pool preview</p>
-        <h1>Import pairings</h1>
+        <h1>Import Your Bid Package</h1>
         <p className="lede">
           Load a month&apos;s pairings for your base. Then <Link href="/">build your bid</Link> to
           see how many pairings each line removes.

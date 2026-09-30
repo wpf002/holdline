@@ -26,7 +26,7 @@ export function SaveBid({
   if (!account) {
     return (
       <p className="hint">
-        <Link href="/login">Sign in</Link> to save this bid and start from it next month.
+        <Link href="/login">Sign In</Link> to save this bid and start from it next month.
       </p>
     );
   }
@@ -44,7 +44,7 @@ export function SaveBid({
     return (
       <p className="hint" role="status">
         Saved &ldquo;{done}&rdquo;{isDefault ? " as your default" : ""}.{" "}
-        <Link href="/bids">My bids</Link>
+        <Link href="/bids">My Bids</Link>
       </p>
     );
   }
@@ -66,7 +66,7 @@ export function SaveBid({
           />
         </div>
         <button type="button" className="button" onClick={save} disabled={busy} aria-busy={busy}>
-          {busy ? "Saving…" : "Save bid"}
+          {busy ? "Saving…" : "Save Bid"}
         </button>
       </div>
       <label className="check">

@@ -30,7 +30,7 @@ export function VerifyLink({ apiUrl }: { apiUrl: string }) {
         <p className="notice-title">Couldn&apos;t sign in</p>
         <p>{state.error}</p>
         <p>
-          <Link href="/login">Ask for a new link</Link>
+          <Link href="/login">Ask for a New Link</Link>
         </p>
       </div>
     );
@@ -43,7 +43,7 @@ export function VerifyLink({ apiUrl }: { apiUrl: string }) {
       </p>
       <p>
         {/* A full navigation so the header picks up the new session. */}
-        <a href="/">Build a bid</a> or <a href="/account">set your defaults</a>.
+        <a href="/">Build a Bid</a> or <a href="/account">Set Your Defaults</a>.
       </p>
     </div>
   );

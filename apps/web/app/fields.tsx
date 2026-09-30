@@ -204,7 +204,7 @@ export function SpecificPairings({
           />
         </div>
         <button type="button" className="button" onClick={add} disabled={!canAdd}>
-          Add pairing
+          Add Pairing
         </button>
       </div>
       {date !== "" && !inMonth && <p className="error-text">Pick a date in the bid month.</p>}

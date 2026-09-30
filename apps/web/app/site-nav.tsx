@@ -5,8 +5,8 @@ import { usePathname } from "next/navigation";
 import { useAccount } from "../lib/use-account";
 
 const LINKS = [
-  { href: "/", label: "Build a bid" },
-  { href: "/pairings", label: "Bid package" },
+  { href: "/", label: "Build a Bid" },
+  { href: "/pairings", label: "Bid Package" },
 ];
 
 export function SiteNav({ apiUrl }: { apiUrl: string }) {
@@ -16,12 +16,12 @@ export function SiteNav({ apiUrl }: { apiUrl: string }) {
     ...LINKS,
     ...(account
       ? [
-          { href: "/bids", label: "My bids" },
+          { href: "/bids", label: "My Bids" },
           { href: "/account", label: "Account" },
         ]
       : loading
         ? []
-        : [{ href: "/login", label: "Sign in" }]),
+        : [{ href: "/login", label: "Sign In" }]),
   ];
   return (
     <nav className="nav" aria-label="Main">

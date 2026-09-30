@@ -55,7 +55,7 @@ export function LoginForm({ apiUrl }: { apiUrl: string }) {
         </div>
         <div className="actions">
           <button type="submit" className="button button-primary" disabled={busy} aria-busy={busy}>
-            {busy ? "Sending…" : "Email me a link"}
+            {busy ? "Sending…" : "Email Me a Link"}
           </button>
           {error && (
             <p className="error-text" role="alert">

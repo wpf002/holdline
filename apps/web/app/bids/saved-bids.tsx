@@ -6,7 +6,7 @@ import { deleteBid, listBids, makeDefaultBid, type SavedBidSummary } from "../..
 import { monthLabel } from "../../lib/draft";
 import { useAccount } from "../../lib/use-account";
 
-const CREW = { PILOT: "Pilot", FLIGHT_ATTENDANT: "Flight attendant" } as const;
+const CREW = { PILOT: "Pilot", FLIGHT_ATTENDANT: "Flight Attendant" } as const;
 
 export function SavedBids({ apiUrl }: { apiUrl: string }) {
   const { account, loading } = useAccount(apiUrl);
@@ -35,7 +35,7 @@ export function SavedBids({ apiUrl }: { apiUrl: string }) {
       <div className="notice narrow">
         <p className="notice-title">You&apos;re not signed in</p>
         <p>
-          <Link href="/login">Sign in</Link> to see your saved bids.
+          <Link href="/login">Sign In</Link> to see your saved bids.
         </p>
       </div>
     );
@@ -53,7 +53,7 @@ export function SavedBids({ apiUrl }: { apiUrl: string }) {
         <div className="bid-empty">
           <p>No saved bids yet.</p>
           <p>
-            <Link href="/">Build a bid</Link>, then save it from the Your bid panel.
+            <Link href="/">Build a Bid</Link>, then save it from the Your bid panel.
           </p>
         </div>
       ) : (
@@ -80,7 +80,7 @@ export function SavedBids({ apiUrl }: { apiUrl: string }) {
                     className="button button-quiet"
                     onClick={() => act(makeDefaultBid(apiUrl, b.id))}
                   >
-                    Make default
+                    Make Default
                   </button>
                 )}
                 <button

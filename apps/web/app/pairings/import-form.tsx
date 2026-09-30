@@ -11,7 +11,7 @@ type Crew = BidIntent["crewGroup"];
 type Kind = "pairings" | "awards" | "results";
 
 const FORMATS: { value: PairingFormat; label: string }[] = [
-  { value: "fos-pdf", label: "Bid package" },
+  { value: "fos-pdf", label: "Bid Package" },
   { value: "holdline-csv", label: "CSV" },
   { value: "holdline-json", label: "JSON" },
 ];
@@ -123,8 +123,8 @@ export function ImportForm({
           value={kind}
           options={[
             { value: "pairings", label: "Pairings" },
-            { value: "results", label: "Your results" },
-            { value: "awards", label: "Award results" },
+            { value: "results", label: "Your Results" },
+            { value: "awards", label: "Award Results" },
           ]}
           onChange={chooseKind}
         />
@@ -168,7 +168,7 @@ export function ImportForm({
             value={crewGroup}
             options={(["PILOT", "FLIGHT_ATTENDANT"] as const).map((c) => ({
               value: c,
-              label: c === "PILOT" ? "Pilot" : "Flight attendant",
+              label: c === "PILOT" ? "Pilot" : "Flight Attendant",
               disabled: airline !== "" && !crews.includes(c),
             }))}
             onChange={setCrewGroup}
@@ -232,32 +232,34 @@ export function ImportForm({
               rows={10}
               value={text}
               spellCheck={false}
-              placeholder={"  9.      Set Condition RSV Call Type R2\n Maximum number of bidders reached\n 10.      Set Condition RSV Call Type R1\n Honored"}
+              placeholder={
+                "  9.      Set Condition RSV Call Type R2\n Maximum number of bidders reached\n 10.      Set Condition RSV Call Type R1\n Honored"
+              }
               onChange={(e) => setText(e.target.value)}
             />
           </div>
         ) : (
-        <div className="row">
-          <div className="field">
-            <label className="label" htmlFor={ids.file}>
-              File
-            </label>
-            <input
-              id={ids.file}
-              className="input"
-              type="file"
-              accept={
-                kind === "pairings"
-                  ? ".pdf,.csv,.json,application/pdf,text/csv,application/json"
-                  : ".csv,text/csv"
-              }
-              onChange={(e) => chooseFile(e.target.files?.[0] ?? null)}
-            />
+          <div className="row">
+            <div className="field">
+              <label className="label" htmlFor={ids.file}>
+                File
+              </label>
+              <input
+                id={ids.file}
+                className="input"
+                type="file"
+                accept={
+                  kind === "pairings"
+                    ? ".pdf,.csv,.json,application/pdf,text/csv,application/json"
+                    : ".csv,text/csv"
+                }
+                onChange={(e) => chooseFile(e.target.files?.[0] ?? null)}
+              />
+            </div>
+            {kind === "pairings" && (
+              <Segmented label="Format" value={format} options={FORMATS} onChange={setFormat} />
+            )}
           </div>
-          {kind === "pairings" && (
-            <Segmented label="Format" value={format} options={FORMATS} onChange={setFormat} />
-          )}
-        </div>
         )}
         <p className="hint">
           Importing replaces any {noun}s already loaded for this airline, crew, base and month.
@@ -275,10 +277,10 @@ export function ImportForm({
           {busy
             ? "Importing…"
             : kind === "pairings"
-              ? "Import pairings"
+              ? "Import Pairings"
               : kind === "results"
-                ? "Import my results"
-                : "Import award results"}
+                ? "Import My Results"
+                : "Import Award Results"}
         </button>
         {error && (
           <p className="error-text" role="alert">
