@@ -6,6 +6,25 @@ import { WEEK, calendarWeeks, monthLabel, rangeLabel, shortDay, toggle } from ".
 import { Segmented } from "./segmented";
 
 type DaysOff = BidIntent["daysOff"];
+type Range = DaysOff["ranges"][number];
+
+const dayAfter = (iso: string) => {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+};
+
+/** Adds a block, folding it into any it touches or overlaps so the same days can't stack up. */
+function addRange(ranges: Range[], next: Range): Range[] {
+  const sorted = [...ranges, next].sort((a, b) => a.start.localeCompare(b.start));
+  const merged: Range[] = [];
+  for (const r of sorted) {
+    const last = merged.at(-1);
+    if (last && r.start <= dayAfter(last.end)) last.end = last.end >= r.end ? last.end : r.end;
+    else merged.push({ ...r });
+  }
+  return merged;
+}
 
 export function DaysOffPicker({
   month,
@@ -23,10 +42,14 @@ export function DaysOffPicker({
 
   function pick(iso: string) {
     if (mode === "days") return onChange({ dates: toggle(daysOff.dates, iso) });
+    // Every click is part of picking a block. Blocks come off with the × on their chip, so a
+    // click inside one can extend it instead of being read as "undo".
     if (!blockStart) return setBlockStart(iso);
+    // Clicking the same day again backs out: one day off belongs on the Single Days tab.
+    if (blockStart === iso) return setBlockStart(null);
     const [start, end] = blockStart <= iso ? [blockStart, iso] : [iso, blockStart];
-    onChange({ ranges: [...daysOff.ranges, { start, end }] });
     setBlockStart(null);
+    onChange({ ranges: addRange(daysOff.ranges, { start, end }) });
   }
 
   const hasAny =
@@ -62,7 +85,7 @@ export function DaysOffPicker({
         {mode === "days"
           ? "Click days in order of importance. The number on a day is its priority; PBS gives up the highest numbers first."
           : blockStart
-            ? `Block starts ${shortDay(blockStart)}. Click its last day.`
+            ? `Block starts ${shortDay(blockStart)}. Click its last day, or click it again to back out.`
             : "Click the first and last day of a block you want off together."}
       </p>
 
@@ -109,14 +132,14 @@ export function DaysOffPicker({
 
       {daysOff.ranges.length > 0 && (
         <ul className="chips" aria-label="Blocks off">
-          {daysOff.ranges.map((r) => (
-            <li key={`${r.start}-${r.end}`} className="chip">
+          {daysOff.ranges.map((r, i) => (
+            <li key={`${r.start}-${r.end}-${i}`} className="chip">
               {rangeLabel(r)}
               <button
                 type="button"
                 className="icon-button"
                 aria-label={`Remove block ${rangeLabel(r)}`}
-                onClick={() => onChange({ ranges: daysOff.ranges.filter((x) => x !== r) })}
+                onClick={() => onChange({ ranges: daysOff.ranges.filter((_, at) => at !== i) })}
               >
                 ×
               </button>
